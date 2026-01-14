@@ -1,5 +1,5 @@
-// API Base URL
-const API_BASE = 'http://localhost:3000/api';
+// API Base URL - Detecta automáticamente el entorno
+const API_BASE = '/api';
 
 // Current search parameters (for export) - separate for each search type
 let currentSearchParams = {
