@@ -55,13 +55,20 @@ jobs:
       - name: Prepare deployment package
         run: |
           echo "Creating deployment package..."
-          tar -czf deploy.tar.gz \
-            --exclude='.git' \
+          tar --exclude-vcs \
             --exclude='node_modules' \
             --exclude='.env' \
+            --exclude='.env.*' \
             --exclude='exports' \
+            --exclude='logs' \
+            --exclude='*.log' \
             --exclude='*.md' \
-            .
+            --exclude='*.tar.gz' \
+            --exclude='.github' \
+            --exclude='certs/docs' \
+            --exclude='certs/*.pem' \
+            -czf deploy.tar.gz \
+            src/ public/ package*.json Dockerfile .dockerignore
           ls -lh deploy.tar.gz
 
       # ==============================================================================
