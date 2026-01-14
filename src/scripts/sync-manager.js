@@ -333,16 +333,16 @@ class SyncManager {
             if (tableName) {
                 totalProcessed = await this.syncTable(tableName);
             } else {
-                // Sincronizar todas las tablas en orden
+                // Sincronizar todas las 8 tablas principales
                 const tableOrder = [
-                    'tbClientes',
-                    'tbClientesDireccion', 
-                    'tbFactura',
-                    'tbFacturaDetalle',
-                    'tbFacturaIngredientes',
-                    'tbCatalogo',
-                    'tbCompania',
-                    'tbRestaurantes'
+                    'tbClientes',           // 773,700 registros
+                    'tbClientesDireccion',  // ~1.5M registros (direcciones por cliente)
+                    'tbFactura',            // 879,962 registros pagados
+                    'tbFacturaDetalle',     // ~5M registros (productos de factura)
+                    'tbFacturaIngredientes',// ~500K registros (ingredientes por producto)
+                    'tbCatalogo',           // 2,427 productos
+                    'tbCompania',           // ~100 registros
+                    'tbRestaurantes'        // ~500 registros
                 ];
 
                 for (const table of tableOrder) {
@@ -372,20 +372,416 @@ class SyncManager {
     async syncTable(tableName) {
         console.log(`🔄 Sincronizando tabla: ${tableName}`);
         
-        // TODO: Implementar lógica específica de sincronización por tabla
-        // Por ahora retornamos 0 como placeholder
-        
         const config = this.checkpoint.tables[tableName];
         if (!config) {
             console.log(`⚠️  Configuración no encontrada para ${tableName}`);
             return 0;
         }
 
-        // Aquí iría la lógica específica de migración para cada tabla
-        // usando las queries definidas en CAMPOS_SINCRONIZACION.md
+        try {
+            await this.connectSQL();
+            
+            let totalProcessed = 0;
+            // Mapeo de tabla SQL a índice ES (8 tablas principales)
+            const indexMap = {
+                tbClientes: 'clickeat_clientes',
+                tbClientesDireccion: 'clickeat_direcciones',
+                tbFactura: 'clickeat_facturas',
+                tbFacturaDetalle: 'clickeat_factura_detalles',
+                tbFacturaIngredientes: 'clickeat_factura_ingredientes',
+                tbCatalogo: 'clickeat_productos',
+                tbCompania: 'clickeat_companias',
+                tbRestaurantes: 'clickeat_restaurantes'
+            };
+            
+            const indexName = indexMap[tableName];
+            if (!indexName) {
+                console.log(`   ⚠️  Tabla ${tableName} no tiene índice ES asignado`);
+                return 0;
+            }
+            
+            // Crear índice si no existe
+            const indexExists = await esClient.indices.exists({ index: indexName });
+            if (!indexExists) {
+                console.log(`   📋 Creando índice ${indexName}...`);
+                await esClient.indices.create({
+                    index: indexName
+                    // Sin configuración de settings para Elasticsearch Serverless
+                });
+            }
+            
+            // Procesar en múltiples iteraciones hasta obtener todos los registros
+            let hasMoreRecords = true;
+            let iteration = 0;
+            
+            while (hasMoreRecords) {
+                iteration++;
+                
+                // Obtener datos de SQL Server
+                const query = this.getQueryForTable(tableName, config);
+                if (!query) {
+                    console.log(`   ⚠️  No hay query definida para ${tableName}`);
+                    break;
+                }
+                
+                if (iteration === 1) {
+                    console.log(`   📊 Obteniendo datos de ${tableName}...`);
+                }
+                
+                const result = await this.sqlPool.request().query(query);
+                const records = result.recordset;
+                
+                if (records.length === 0) {
+                    if (iteration === 1) {
+                        console.log(`   ✅ No hay registros nuevos en ${tableName}`);
+                    }
+                    hasMoreRecords = false;
+                    break;
+                }
+                
+                if (iteration === 1) {
+                    console.log(`   📤 Indexando registros en batches de 5,000...`);
+                }
+                
+                // Indexar en batches de 1000 documentos
+                const BATCH_SIZE = 1000;
+                for (let i = 0; i < records.length; i += BATCH_SIZE) {
+                    const batch = records.slice(i, i + BATCH_SIZE);
+                    const operations = batch.flatMap(doc => [
+                        { index: { _index: indexName, _id: this.getDocumentId(tableName, doc) } },
+                        this.transformDocument(tableName, doc)
+                    ]);
+                    
+                    await esClient.bulk({ operations, refresh: false });
+                    totalProcessed += batch.length;
+                }
+                
+                // Actualizar checkpoint después de cada iteración
+                // Obtener el último timestamp/id procesado para continuar desde ahí
+                const lastRecord = records[records.length - 1];
+                if (lastRecord.FechaCreacion) {
+                    config.last_sync = new Date(lastRecord.FechaCreacion).toISOString();
+                } else if (lastRecord.Fecha_facturado) {
+                    config.last_sync = new Date(lastRecord.Fecha_facturado).toISOString();
+                } else {
+                    // Para tablas con max_id
+                    const idField = this.getIdFieldName(tableName);
+                    if (idField && lastRecord[idField]) {
+                        config.last_max_id = lastRecord[idField];
+                    }
+                }
+                
+                this.saveCheckpoint();
+                
+                console.log(`   ⏳ Progreso: ${totalProcessed.toLocaleString()} registros procesados`);
+                
+                // Si obtuvimos menos registros que el límite, no hay más datos
+                if (records.length < 5000) {
+                    hasMoreRecords = false;
+                }
+            }
+            
+            // Refresh del índice al finalizar
+            await esClient.indices.refresh({ index: indexName });
+            
+            // Guardar estadísticas finales
+            config.last_records_processed = totalProcessed;
+            this.saveCheckpoint();
+            
+            console.log(`   ✅ ${tableName} sincronizada: ${totalProcessed.toLocaleString()} registros`);
+            return totalProcessed;
+            
+        } catch (error) {
+            console.error(`   ❌ Error sincronizando ${tableName}:`, error.message);
+            throw error;
+        } finally {
+            await this.disconnectSQL();
+        }
+    }
+    
+    // 📝 Obtener query para cada tabla
+    getQueryForTable(tableName, config) {
+        const lastSync = config.last_sync || '1900-01-01';
+        const lastId = config.last_max_id || 0;
         
-        console.log(`✅ ${tableName} sincronizada (placeholder)`);
-        return 0;
+        const queries = {
+            tbClientes: `
+                SELECT TOP 5000
+                    Id_cliente, Nombre, Correo, Telefono, Cedula,
+                    FechaCreacion, Id_compania, Puntos, Estado
+                FROM tbClientes
+                WHERE FechaCreacion > '${lastSync}'
+                ORDER BY FechaCreacion
+            `,
+            tbClientesDireccion: `
+                SELECT TOP 5000
+                    Id_direccion, Id_cliente, Id_compania,
+                    Nombre_contacto, Telefono_contacto, Correo_contacto,
+                    Direccion, Nombre_direccion, Punto_referencia,
+                    Latitud, Longitud, DireccionPorDefecto
+                FROM tbClientesDireccion
+                WHERE Id_direccion > ${lastId}
+                ORDER BY Id_direccion
+            `,
+            tbFactura: `
+                SELECT TOP 5000
+                    Id_factura, Id_cliente, Id_restaurante, Id_compania,
+                    Fecha_facturado, MontoTotal, Pagado, Estado, EstadoFactura,
+                    Direccion, Cedula, Telefono, Nombre, Correo_facturacion,
+                    Tipo_entrega, Puntos, Puntos_utilizados
+                FROM tbFactura
+                WHERE Pagado = 1 
+                  AND Fecha_facturado IS NOT NULL
+                  AND Fecha_facturado > '${lastSync}'
+                ORDER BY Fecha_facturado
+            `,
+            tbFacturaDetalle: `
+                SELECT TOP 5000
+                    Id_detalle, Id_factura, Id_producto,
+                    Cantidad, Precio, Descuento, MontoTotal, ImpuestoVenta, ImpuestoServicio
+                FROM tbFacturaDetalle
+                WHERE Id_detalle > ${lastId}
+                ORDER BY Id_detalle
+            `,
+            tbFacturaIngredientes: `
+                SELECT TOP 5000
+                    Id_ingrediente, Id_factura, Id_producto,
+                    Cantidad, Precio, MontoTotal, ImpuestoVenta, ImpuestoServicio
+                FROM tbFacturaIngredientes
+                WHERE Id_ingrediente > ${lastId}
+                ORDER BY Id_ingrediente
+            `,
+            tbCatalogo: `
+                SELECT TOP 5000
+                    Id_producto, NombreCatalogo, Descripcion, 
+                    PrecioEnExpress, PrecioEnRecoger, PrecioEnMesa, PrecioEnAuto,
+                    Activo_app, Id_compania, Foto_producto, Estado
+                FROM tbCatalogo
+                WHERE Id_producto > ${lastId}
+                ORDER BY Id_producto
+            `,
+            tbCompania: `
+                SELECT TOP 5000
+                    Id_compania, Nombre_compania, Nombrecorto_compania, Estado
+                FROM tbCompania
+                WHERE Id_compania > ${lastId}
+                ORDER BY Id_compania
+            `,
+            tbRestaurantes: `
+                SELECT TOP 5000
+                    Id_restaurante, Nombre_restaurante, Telefono, Correo_restaurante,
+                    Id_compania, Activo, Foto_restaurante, Estado
+                FROM tbRestaurantes
+                WHERE Id_restaurante > ${lastId}
+                ORDER BY Id_restaurante
+            `
+        };
+        
+        return queries[tableName] || null;
+    }
+    
+    // 🔄 Transformar documento según la tabla
+    transformDocument(tableName, doc) {
+        // Transformaciones específicas por tabla
+        if (tableName === 'tbClientes') {
+            return {
+                id_cliente: doc.Id_cliente,
+                nombre: doc.Nombre,
+                email: doc.Correo,
+                telefono: doc.Telefono,
+                cedula: doc.Cedula,
+                fecha_registro: doc.FechaCreacion,
+                puntos: doc.Puntos || 0,
+                estado: doc.Estado,
+                compania: {
+                    id_compania: doc.Id_compania
+                }
+            };
+        }
+        
+        if (tableName === 'tbClientesDireccion') {
+            return {
+                id_direccion: doc.Id_direccion,
+                id_cliente: doc.Id_cliente,
+                nombre_contacto: doc.Nombre_contacto,
+                telefono_contacto: doc.Telefono_contacto,
+                correo_contacto: doc.Correo_contacto,
+                direccion: doc.Direccion,
+                nombre_direccion: doc.Nombre_direccion,
+                punto_referencia: doc.Punto_referencia,
+                ubicacion: {
+                    lat: doc.Latitud,
+                    lon: doc.Longitud
+                },
+                es_principal: doc.DireccionPorDefecto,
+                compania: {
+                    id_compania: doc.Id_compania
+                }
+            };
+        }
+        
+        if (tableName === 'tbFactura') {
+            // Parsear el JSON del campo Direccion
+            let ubicacion = null;
+            if (doc.Direccion) {
+                try {
+                    const direccionArray = JSON.parse(doc.Direccion);
+                    if (direccionArray && direccionArray.length > 0) {
+                        const dir = direccionArray[0];
+                        ubicacion = {
+                            provincia: dir.Nombre_provincia,
+                            canton: dir.Nombre_canton,
+                            distrito: dir.Nombre_distrito,
+                            barrio: dir.Nombre_barrio,
+                            direccion: dir.Direccion,
+                            nombre_direccion: dir.Nombre_direccion,
+                            punto_referencia: dir.Punto_referencia,
+                            lat: dir.Latitud,
+                            lon: dir.Longitud
+                        };
+                    }
+                } catch (e) {
+                    // Si no se puede parsear, dejar como null
+                }
+            }
+            
+            return {
+                id_factura: doc.Id_factura,
+                id_cliente: doc.Id_cliente,
+                id_restaurante: doc.Id_restaurante,
+                fecha: doc.Fecha_facturado,
+                monto_total: doc.MontoTotal,
+                pagado: doc.Pagado === 1,
+                estado: doc.Estado,
+                estado_factura: doc.EstadoFactura,
+                tipo_entrega: doc.Tipo_entrega,
+                cliente_info: {
+                    cedula: doc.Cedula,
+                    telefono: doc.Telefono,
+                    nombre: doc.Nombre,
+                    correo: doc.Correo_facturacion
+                },
+                ubicacion: ubicacion,
+                puntos: {
+                    ganados: doc.Puntos || 0,
+                    utilizados: doc.Puntos_utilizados || 0
+                },
+                compania: {
+                    id_compania: doc.Id_compania
+                }
+            };
+        }
+        
+        if (tableName === 'tbFacturaDetalle') {
+            return {
+                id_detalle: doc.Id_detalle,
+                id_factura: doc.Id_factura,
+                id_producto: doc.Id_producto,
+                cantidad: doc.Cantidad,
+                precio: doc.Precio,
+                descuento: doc.Descuento || 0,
+                monto_total: doc.MontoTotal,
+                impuesto_venta: doc.ImpuestoVenta || 0,
+                impuesto_servicio: doc.ImpuestoServicio || 0
+            };
+        }
+        
+        if (tableName === 'tbFacturaIngredientes') {
+            return {
+                id_ingrediente: doc.Id_ingrediente,
+                id_factura: doc.Id_factura,
+                id_producto: doc.Id_producto,
+                cantidad: doc.Cantidad,
+                precio: doc.Precio,
+                monto_total: doc.MontoTotal,
+                impuesto_venta: doc.ImpuestoVenta || 0,
+                impuesto_servicio: doc.ImpuestoServicio || 0
+            };
+        }
+        
+        if (tableName === 'tbCatalogo') {
+            return {
+                id_producto: doc.Id_producto,
+                nombre: doc.NombreCatalogo,
+                descripcion: doc.Descripcion,
+                precios: {
+                    express: doc.PrecioEnExpress || 0,
+                    recoger: doc.PrecioEnRecoger || 0,
+                    mesa: doc.PrecioEnMesa || 0,
+                    auto: doc.PrecioEnAuto || 0
+                },
+                activo_app: doc.Activo_app,
+                estado: doc.Estado,
+                foto: doc.Foto_producto,
+                compania: {
+                    id_compania: doc.Id_compania
+                }
+            };
+        }
+        
+        if (tableName === 'tbCompania') {
+            return {
+                id_compania: doc.Id_compania,
+                nombre: doc.Nombre_compania,
+                nombre_corto: doc.Nombrecorto_compania,
+                estado: doc.Estado
+            };
+        }
+        
+        if (tableName === 'tbRestaurantes') {
+            return {
+                id_restaurante: doc.Id_restaurante,
+                nombre: doc.Nombre_restaurante,
+                telefono: doc.Telefono,
+                correo: doc.Correo_restaurante,
+                activo: doc.Activo,
+                estado: doc.Estado,
+                foto: doc.Foto_restaurante,
+                compania: {
+                    id_compania: doc.Id_compania
+                }
+            };
+        }
+        
+        // Por defecto retornar el documento tal cual
+        return doc;
+    }
+    
+    // 🆔 Obtener ID del documento (campos como vienen de SQL Server)
+    getDocumentId(tableName, doc) {
+        const idFields = {
+            tbClientes: 'Id_cliente',
+            tbClientesDireccion: 'Id_direccion',
+            tbFactura: 'Id_factura',
+            tbFacturaDetalle: 'Id_detalle',
+            tbFacturaIngredientes: 'Id_ingrediente',
+            tbCatalogo: 'Id_producto',
+            tbCompania: 'Id_compania',
+            tbRestaurantes: 'Id_restaurante'
+        };
+        
+        const field = idFields[tableName];
+        if (!field || !doc[field]) {
+            console.error(`❌ No se encontró ID para ${tableName}, campo esperado: ${field}`);
+            console.error(`   Campos disponibles:`, Object.keys(doc));
+            return null;
+        }
+        return doc[field].toString();
+    }
+    
+    // 🔑 Obtener nombre del campo ID para checkpoint
+    getIdFieldName(tableName) {
+        const idFields = {
+            tbClientes: 'Id_cliente',
+            tbClientesDireccion: 'Id_direccion',
+            tbFactura: 'Id_factura',
+            tbFacturaDetalle: 'Id_detalle',
+            tbFacturaIngredientes: 'Id_ingrediente',
+            tbCatalogo: 'Id_producto',
+            tbCompania: 'Id_compania',
+            tbRestaurantes: 'Id_restaurante'
+        };
+        return idFields[tableName];
     }
 
     // 📈 Reconstruir índices agregados

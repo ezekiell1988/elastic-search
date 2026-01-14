@@ -7,13 +7,16 @@ async function checkIndices() {
   try {
     console.log('\n🔍 Verificando índices de ClickEat (8 tablas + 4 agregados)...');
     
-    console.log('📊 ÍNDICES PRINCIPALES (5):');
+    console.log('📊 ÍNDICES PRINCIPALES (8):');
     const mainIndices = [
-      'clickeat_clientes',        // tbClientes + tbClientesDireccion (anidado)
-      'clickeat_facturas',        // tbFactura + tbFacturaDetalle + tbFacturaIngredientes (anidados)
-      'clickeat_productos',       // tbCatalogo
-      'clickeat_companias',       // tbCompania  
-      'clickeat_restaurantes'     // tbRestaurantes
+      'clickeat_clientes',              // tbClientes (773,700 registros)
+      'clickeat_direcciones',           // tbClientesDireccion (~1.5M registros)
+      'clickeat_facturas',              // tbFactura (879,962 registros pagados)
+      'clickeat_factura_detalles',      // tbFacturaDetalle (~5M registros)
+      'clickeat_factura_ingredientes',  // tbFacturaIngredientes (~500K registros)
+      'clickeat_productos',             // tbCatalogo (2,427 productos)
+      'clickeat_companias',             // tbCompania (~100 registros)
+      'clickeat_restaurantes'           // tbRestaurantes (~500 registros)
     ];
     
     for (const index of mainIndices) {
@@ -45,9 +48,8 @@ async function checkSingleIndex(index) {
     const exists = await esClient.indices.exists({ index });
     if (exists) {
       const count = await esClient.count({ index });
-      const health = await esClient.cluster.health({ index });
-      const status = health.status === 'green' ? '🟢' : health.status === 'yellow' ? '🟡' : '🔴';
-      console.log(`✅ ${index.padEnd(35)} - ${count.count.toLocaleString().padStart(10)} registros ${status}`);
+      // Elasticsearch Serverless no soporta cluster.health, solo mostrar count
+      console.log(`✅ ${index.padEnd(35)} - ${count.count.toLocaleString().padStart(10)} registros`);
     } else {
       console.log(`❌ ${index.padEnd(35)} - No existe`);
     }

@@ -1,0 +1,98 @@
+{
+  "version": "1.0",
+  "last_full_sync": null,
+  "last_incremental_sync": "2026-01-14T04:39:37.414Z",
+  "tables": {
+    "tbClientes": {
+      "sync_method": "date_field",
+      "date_field": "FechaCreacion",
+      "last_sync": "2025-12-16T23:03:48.810Z",
+      "last_max_id": 0,
+      "records_added": 0,
+      "records_updated": 0,
+      "last_records_processed": 0
+    },
+    "tbClientesDireccion": {
+      "sync_method": "client_relation",
+      "depends_on": "tbClientes",
+      "last_sync": null,
+      "last_max_id": 378100,
+      "records_added": 0,
+      "records_updated": 0,
+      "last_records_processed": 0
+    },
+    "tbFactura": {
+      "sync_method": "date_field",
+      "date_field": "Fecha_facturado",
+      "filter": "Pagado = 1",
+      "last_sync": "2026-01-14T04:27:33.589Z",
+      "last_fecha": null,
+      "records_added": 0,
+      "records_updated": 0,
+      "last_records_processed": 0
+    },
+    "tbFacturaDetalle": {
+      "sync_method": "factura_relation",
+      "depends_on": "tbFactura",
+      "last_sync": null,
+      "records_added": 0,
+      "records_updated": 0,
+      "last_max_id": 1488521,
+      "last_records_processed": 370476
+    },
+    "tbFacturaIngredientes": {
+      "sync_method": "factura_relation",
+      "depends_on": "tbFactura",
+      "last_sync": null,
+      "records_added": 0,
+      "records_updated": 0,
+      "last_max_id": 2517058
+    },
+    "tbCatalogo": {
+      "sync_method": "max_id",
+      "last_sync": null,
+      "last_max_id": 2741,
+      "records_added": 0,
+      "records_updated": 0,
+      "last_records_processed": 0
+    },
+    "tbCompania": {
+      "sync_method": "max_id",
+      "last_sync": null,
+      "last_max_id": 8,
+      "records_added": 0,
+      "records_updated": 0,
+      "last_records_processed": 8
+    },
+    "tbRestaurantes": {
+      "sync_method": "max_id",
+      "last_sync": null,
+      "last_max_id": 338,
+      "records_added": 0,
+      "records_updated": 0,
+      "last_records_processed": 171
+    }
+  },
+  "aggregated_indexes": {
+    "clickeat_ventas_por_producto": {
+      "last_rebuild": null,
+      "records_processed": 0,
+      "products_updated": 0
+    },
+    "clickeat_ventas_por_restaurante": {
+      "last_rebuild": null,
+      "records_processed": 0,
+      "restaurants_updated": 0
+    },
+    "clickeat_ventas_por_cliente": {
+      "last_rebuild": null,
+      "records_processed": 0,
+      "clients_updated": 0
+    },
+    "clickeat_ventas_por_telefono": {
+      "last_rebuild": null,
+      "records_processed": 0,
+      "phones_updated": 0
+    }
+  }
+}

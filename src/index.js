@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { verifyConnection } from './config/elasticsearch.js';
 import customerRoutes from './routes/customerRoutes.js';
+import indicesRoutes from './routes/indicesRoutes.js';
 
 dotenv.config();
 
@@ -32,18 +33,27 @@ app.get('/api', (req, res) => {
     message: 'API de Reactivación de Clientes',
     version: '1.0.0',
     endpoints: {
+      // Customers
       indexTotals: 'GET /api/customers/index-totals - Totales de índices',
       search: 'POST /api/customers/search - Búsqueda avanzada',
       freeText: 'POST /api/customers/free-text-search - Búsqueda por texto libre',
       stats: 'GET /api/customers/inactive-stats - Estadísticas de inactivos',
       details: 'GET /api/customers/:id - Detalles de cliente',
-      export: 'POST /api/customers/export - Exportar a Excel'
+      export: 'POST /api/customers/export - Exportar a Excel',
+      
+      // Indices Management
+      listIndices: 'GET /api/indices - Lista todos los índices',
+      createIndex: 'POST /api/indices - Crear nuevo índice',
+      deleteIndex: 'DELETE /api/indices/:name - Eliminar índice',
+      indexData: 'POST /api/indices/:name/data - Obtener datos del índice',
+      exportIndex: 'POST /api/indices/:name/export - Exportar datos del índice'
     }
   });
 });
 
 // Routes de la API
 app.use('/api/customers', customerRoutes);
+app.use('/api/indices', indicesRoutes);
 
 // Servir archivos estáticos desde la carpeta public (debe ir DESPUÉS de las rutas de la API)
 app.use(express.static(path.join(__dirname, '../public')));

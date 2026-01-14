@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Índices - Elasticsearch</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/indices.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>⚙️ Gestión de Índices Elasticsearch</h1>
+            <p class="subtitle">Administra tus índices de datos</p>
+            <nav class="navigation">
+                <a href="index.html" class="nav-link">🏠 Volver al Dashboard</a>
+            </nav>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Indices Management Section -->
+            <div class="indices-section">
+                <div class="section-header">
+                    <h2>📊 Índices Disponibles</h2>
+                    <div class="section-actions">
+                        <button onclick="showCreateIndexModal()" class="btn btn-primary">
+                            ➕ Crear Índice
+                        </button>
+                        <button onclick="refreshIndices()" class="btn btn-secondary">
+                            🔄 Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Indices List -->
+                <div id="indicesContainer" class="indices-container">
+                    <div class="loading-indices">
+                        <div class="spinner"></div>
+                        <p>Cargando índices...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Index Data Section -->
+            <div id="indexDataSection" class="index-data-section" style="display: none;">
+                <div class="section-header">
+                    <h2 id="selectedIndexTitle">📋 Datos del Índice</h2>
+                    <div class="section-actions">
+                        <button onclick="exportIndexData()" class="btn btn-success">
+                            📥 Exportar
+                        </button>
+                        <button onclick="closeIndexData()" class="btn btn-secondary">
+                            ✖️ Cerrar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="filters-container">
+                    <div class="filter-group">
+                        <label for="searchField">Campo de búsqueda:</label>
+                        <select id="searchField" class="form-control">
+                            <option value="">Seleccionar campo...</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="searchValue">Valor:</label>
+                        <input type="text" id="searchValue" placeholder="Ingresa el valor..." class="form-control">
+                    </div>
+                    <div class="filter-group">
+                        <label for="sortField">Ordenar por:</label>
+                        <select id="sortField" class="form-control">
+                            <option value="">Sin ordenar</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="sortOrder">Orden:</label>
+                        <select id="sortOrder" class="form-control">
+                            <option value="asc">Ascendente</option>
+                            <option value="desc">Descendente</option>
+                        </select>
+                    </div>
+                    <div class="filter-actions">
+                        <button onclick="applyFilters()" class="btn btn-primary">🔍 Filtrar</button>
+                        <button onclick="clearFilters()" class="btn btn-secondary">🔄 Limpiar</button>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="table-section">
+                    <div class="table-header">
+                        <div class="table-info">
+                            <span id="dataResultsCount">0 registros</span>
+                            <span id="dataResultsTime"></span>
+                        </div>
+                        <div class="pagination-top">
+                            <button onclick="previousPage()" id="prevBtnTop" class="btn btn-sm">← Anterior</button>
+                            <span id="pageInfoTop" class="page-info">Página 1</span>
+                            <button onclick="nextPage()" id="nextBtnTop" class="btn btn-sm">Siguiente →</button>
+                            <select id="pageSizeTop" class="form-control form-control-sm" onchange="changePageSize(this.value)">
+                                <option value="10">10 por página</option>
+                                <option value="25">25 por página</option>
+                                <option value="50">50 por página</option>
+                                <option value="100" selected>100 por página</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="dataTable" class="data-table">
+                            <thead id="dataTableHead"></thead>
+                            <tbody id="dataTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="table-footer">
+                        <div class="pagination-bottom">
+                            <button onclick="previousPage()" id="prevBtnBottom" class="btn btn-sm">← Anterior</button>
+                            <span id="pageInfoBottom" class="page-info">Página 1</span>
+                            <button onclick="nextPage()" id="nextBtnBottom" class="btn btn-sm">Siguiente →</button>
+                            <select id="pageSizeBottom" class="form-control form-control-sm" onchange="changePageSize(this.value)">
+                                <option value="10">10 por página</option>
+                                <option value="25">25 por página</option>
+                                <option value="50">50 por página</option>
+                                <option value="100" selected>100 por página</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <!-- Create Index Modal -->
+        <div id="createIndexModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>➕ Crear Nuevo Índice</h3>
+                    <button onclick="closeCreateIndexModal()" class="close-btn">✖️</button>
+                </div>
+                <div class="modal-body">
+                    <form id="createIndexForm">
+                        <div class="form-group">
+                            <label for="indexName">Nombre del Índice:</label>
+                            <input type="text" id="indexName" class="form-control" placeholder="mi-nuevo-indice" required>
+                            <small class="form-text">Solo minúsculas, números, guiones y guiones bajos</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="indexSettings">Configuración (JSON opcional):</label>
+                            <textarea id="indexSettings" class="form-control" rows="6" placeholder='{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "properties": {
+      "campo_ejemplo": {"type": "text"}
+    }
+  }
+}'></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="createIndex()" class="btn btn-primary">Crear Índice</button>
+                    <button onclick="closeCreateIndexModal()" class="btn btn-secondary">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="deleteModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🗑️ Confirmar Eliminación</h3>
+                    <button onclick="closeDeleteModal()" class="close-btn">✖️</button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Estás seguro de que quieres eliminar el índice <strong id="deleteIndexName"></strong>?</p>
+                    <p class="warning-text">⚠️ Esta acción no se puede deshacer y se perderán todos los datos.</p>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="confirmDeleteIndex()" class="btn btn-danger">Eliminar</button>
+                    <button onclick="closeDeleteModal()" class="btn btn-secondary">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="spinner"></div>
+            <p id="loadingText">Procesando...</p>
+        </div>
+    </div>
+
+    <script src="js/indices.js"></script>
+</body>
+</html>
