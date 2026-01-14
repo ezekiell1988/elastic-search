@@ -426,10 +426,17 @@ class SyncManager {
                 
                 if (iteration === 1) {
                     console.log(`   📊 Obteniendo datos de ${tableName}...`);
+                    if (tableName === 'tbFactura') {
+                        console.log(`   🔍 Debug: lastSync = ${config.last_sync}`);
+                    }
                 }
                 
                 const result = await this.sqlPool.request().query(query);
                 const records = result.recordset;
+                
+                if (iteration === 1 && tableName === 'tbFactura') {
+                    console.log(`   📋 Query resultó en: ${records.length} registros`);
+                }
                 
                 if (records.length === 0) {
                     if (iteration === 1) {
@@ -649,7 +656,7 @@ class SyncManager {
                 id_factura: doc.Id_factura,
                 id_cliente: doc.Id_cliente,
                 id_restaurante: doc.Id_restaurante,
-                fecha: doc.Fecha_facturado,
+                fecha_facturado: doc.Fecha_facturado,
                 monto_total: doc.MontoTotal,
                 pagado: doc.Pagado === 1,
                 estado: doc.Estado,
@@ -798,6 +805,9 @@ class SyncManager {
             // Ventas por cliente (nuevo)
             await this.rebuildClientStats();
 
+            // Ventas por teléfono (incluye guests)
+            await this.rebuildPhoneStats();
+
             console.log('✅ Índices agregados reconstruidos correctamente');
 
         } catch (error) {
@@ -810,47 +820,419 @@ class SyncManager {
     async rebuildProductStats() {
         console.log('📊 Reconstruyendo estadísticas de productos...');
         
-        // TODO: Implementar agregación de ventas por producto
-        // Agrupar facturas por producto, incluir ingredientes
-        
-        this.checkpoint.aggregated_indexes.clickeat_ventas_por_producto.last_rebuild = new Date().toISOString();
-        console.log('✅ Estadísticas de productos actualizadas');
+        try {
+            // Crear índice si no existe
+            const indexExists = await esClient.indices.exists({ index: 'clickeat_ventas_por_producto' });
+            if (!indexExists) {
+                await esClient.indices.create({
+                    index: 'clickeat_ventas_por_producto',
+                    mappings: {
+                        properties: {
+                            id_producto: { type: 'keyword' },
+                            nombre_producto: { type: 'text', fields: { keyword: { type: 'keyword' } } },
+                            categoria: { type: 'keyword' },
+                            compania: {
+                                properties: {
+                                    id_compania: { type: 'keyword' },
+                                    nombre_compania: { type: 'keyword' },
+                                    pais: { type: 'keyword' }
+                                }
+                            },
+                            total_vendido: { type: 'integer' },
+                            ingreso_total: { type: 'float' },
+                            precio_promedio: { type: 'float' },
+                            ingredientes_populares: {
+                                type: 'nested',
+                                properties: {
+                                    nombre: { type: 'keyword' },
+                                    frecuencia: { type: 'integer' }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Usar aggregation de Elasticsearch
+            const result = await esClient.search({
+                index: 'clickeat_factura_detalles',
+                size: 0,
+                aggs: {
+                    productos: {
+                        terms: { field: 'id_producto', size: 10000 },
+                        aggs: {
+                            total_vendido: { sum: { field: 'cantidad' } },
+                            ingreso_total: { sum: { field: 'subtotal' } },
+                            precio_promedio: { avg: { field: 'precio_unitario' } },
+                            nombre: { terms: { field: 'nombre_producto.keyword', size: 1 } },
+                            id_compania: { terms: { field: 'id_compania', size: 1 } }
+                        }
+                    }
+                }
+            });
+
+            const bulkOps = [];
+            result.aggregations.productos.buckets.forEach(bucket => {
+                const doc = {
+                    id_producto: bucket.key,
+                    nombre_producto: bucket.nombre.buckets[0]?.key || 'Desconocido',
+                    total_vendido: bucket.total_vendido.value,
+                    ingreso_total: bucket.ingreso_total.value,
+                    precio_promedio: bucket.precio_promedio.value,
+                    compania: {
+                        id_compania: bucket.id_compania.buckets[0]?.key
+                    }
+                };
+
+                bulkOps.push({ index: { _index: 'clickeat_ventas_por_producto', _id: bucket.key } });
+                bulkOps.push(doc);
+            });
+
+            if (bulkOps.length > 0) {
+                await esClient.bulk({ body: bulkOps, refresh: true });
+            }
+
+            this.checkpoint.aggregated_indexes.clickeat_ventas_por_producto.last_rebuild = new Date().toISOString();
+            this.checkpoint.aggregated_indexes.clickeat_ventas_por_producto.products_updated = result.aggregations.productos.buckets.length;
+            console.log(`✅ ${result.aggregations.productos.buckets.length} productos agregados`);
+        } catch (error) {
+            console.error('❌ Error:', error.message);
+        }
     }
 
     // 🏪 Estadísticas de restaurantes  
     async rebuildRestaurantStats() {
         console.log('🏪 Reconstruyendo estadísticas de restaurantes...');
         
-        // TODO: Implementar agregación de ventas por restaurante
-        // Agrupar facturas por restaurante, calcular métricas
-        
-        this.checkpoint.aggregated_indexes.clickeat_ventas_por_restaurante.last_rebuild = new Date().toISOString();
-        console.log('✅ Estadísticas de restaurantes actualizadas');
+        try {
+            const indexExists = await esClient.indices.exists({ index: 'clickeat_ventas_por_restaurante' });
+            if (!indexExists) {
+                await esClient.indices.create({
+                    index: 'clickeat_ventas_por_restaurante',
+                    mappings: {
+                        properties: {
+                            id_restaurante: { type: 'keyword' },
+                            nombre_restaurante: { type: 'text', fields: { keyword: { type: 'keyword' } } },
+                            ciudad: { type: 'keyword' },
+                            compania: {
+                                properties: {
+                                    id_compania: { type: 'keyword' },
+                                    nombre_compania: { type: 'keyword' }
+                                }
+                            },
+                            total_ordenes: { type: 'integer' },
+                            ingreso_total: { type: 'float' },
+                            ticket_promedio: { type: 'float' }
+                        }
+                    }
+                });
+            }
+
+            const result = await esClient.search({
+                index: 'clickeat_facturas',
+                size: 0,
+                aggs: {
+                    restaurantes: {
+                        terms: { field: 'id_restaurante', size: 10000 },
+                        aggs: {
+                            total_ordenes: { value_count: { field: 'id_factura' } },
+                            ingreso_total: { sum: { field: 'monto_total' } },
+                            ticket_promedio: { avg: { field: 'monto_total' } }
+                        }
+                    }
+                }
+            });
+
+            const bulkOps = [];
+            result.aggregations.restaurantes.buckets.forEach(bucket => {
+                const doc = {
+                    id_restaurante: bucket.key,
+                    total_ordenes: bucket.total_ordenes.value,
+                    ingreso_total: bucket.ingreso_total.value,
+                    ticket_promedio: bucket.ticket_promedio.value
+                };
+
+                bulkOps.push({ index: { _index: 'clickeat_ventas_por_restaurante', _id: bucket.key } });
+                bulkOps.push(doc);
+            });
+
+            if (bulkOps.length > 0) {
+                await esClient.bulk({ body: bulkOps, refresh: true });
+            }
+
+            this.checkpoint.aggregated_indexes.clickeat_ventas_por_restaurante.last_rebuild = new Date().toISOString();
+            this.checkpoint.aggregated_indexes.clickeat_ventas_por_restaurante.restaurants_updated = result.aggregations.restaurantes.buckets.length;
+            console.log(`✅ ${result.aggregations.restaurantes.buckets.length} restaurantes agregados`);
+        } catch (error) {
+            console.error('❌ Error:', error.message);
+        }
     }
 
     // 👥 Estadísticas de clientes
     async rebuildClientStats() {
         console.log('👥 Reconstruyendo estadísticas de clientes...');
         
-        // TODO: Implementar agregación de comportamiento de clientes
-        // Calcular: frecuencia compra, monto promedio, productos favoritos, 
-        // última compra, segmentación (VIP, frecuente, ocasional, inactivo)
-        
-        this.checkpoint.aggregated_indexes.clickeat_ventas_por_cliente.last_rebuild = new Date().toISOString();
-        console.log('✅ Estadísticas de clientes actualizadas');
+        try {
+            const indexExists = await esClient.indices.exists({ index: 'clickeat_ventas_por_cliente' });
+            if (!indexExists) {
+                await esClient.indices.create({
+                    index: 'clickeat_ventas_por_cliente',
+                    mappings: {
+                        properties: {
+                            telefono: { type: 'keyword' },
+                            nombre: { type: 'text', fields: { keyword: { type: 'keyword' } } },
+                            email: { type: 'keyword' },
+                            ciudad: { type: 'keyword' },
+                            compania: {
+                                properties: {
+                                    id_compania: { type: 'keyword' }
+                                }
+                            },
+                            total_ordenes: { type: 'integer' },
+                            gasto_total: { type: 'float' },
+                            ticket_promedio: { type: 'float' },
+                            primera_compra: { type: 'date' },
+                            ultima_compra: { type: 'date' },
+                            dias_sin_compra: { type: 'integer' },
+                            productos_favoritos: {
+                                type: 'nested',
+                                properties: {
+                                    nombre: { type: 'keyword' },
+                                    veces_ordenado: { type: 'integer' }
+                                }
+                            },
+                            ingredientes_preferidos: { type: 'keyword' },
+                            segmento: { type: 'keyword' }
+                        }
+                    }
+                });
+            }
+
+            // Agregación por teléfono (captura clientes y guests)
+            const result = await esClient.search({
+                index: 'clickeat_facturas',
+                size: 0,
+                aggs: {
+                    clientes: {
+                        terms: { field: 'telefono', size: 100000 },
+                        aggs: {
+                            total_ordenes: { value_count: { field: 'id_factura' } },
+                            gasto_total: { sum: { field: 'monto_total' } },
+                            ticket_promedio: { avg: { field: 'monto_total' } },
+                            primera_compra: { min: { field: 'fecha_factura' } },
+                            ultima_compra: { max: { field: 'fecha_factura' } },
+                            nombre: { terms: { field: 'nombre_cliente.keyword', size: 1 } },
+                            ciudad: { terms: { field: 'ciudad.keyword', size: 1 } },
+                            id_compania: { terms: { field: 'id_compania', size: 1 } }
+                        }
+                    }
+                }
+            });
+
+            const bulkOps = [];
+            const now = new Date();
+            
+            result.aggregations.clientes.buckets.forEach(bucket => {
+                const ultimaCompra = new Date(bucket.ultima_compra.value);
+                const diasSinCompra = Math.floor((now - ultimaCompra) / (1000 * 60 * 60 * 24));
+                
+                // Segmentación automática
+                let segmento = 'ocasional';
+                if (bucket.gasto_total.value > 500000) {
+                    segmento = diasSinCompra > 90 ? 'vip_inactivo' : 'vip';
+                } else if (bucket.total_ordenes.value > 20) {
+                    segmento = diasSinCompra > 90 ? 'frecuente_inactivo' : 'frecuente';
+                } else if (diasSinCompra > 180) {
+                    segmento = 'perdido';
+                } else if (diasSinCompra > 90) {
+                    segmento = 'inactivo';
+                }
+
+                const doc = {
+                    telefono: bucket.key,
+                    nombre: bucket.nombre.buckets[0]?.key || 'Cliente',
+                    ciudad: bucket.ciudad.buckets[0]?.key || '',
+                    compania: {
+                        id_compania: bucket.id_compania.buckets[0]?.key
+                    },
+                    total_ordenes: bucket.total_ordenes.value,
+                    gasto_total: bucket.gasto_total.value,
+                    ticket_promedio: bucket.ticket_promedio.value,
+                    primera_compra: bucket.primera_compra.value_as_string,
+                    ultima_compra: bucket.ultima_compra.value_as_string,
+                    dias_sin_compra: diasSinCompra,
+                    segmento: segmento
+                };
+
+                bulkOps.push({ index: { _index: 'clickeat_ventas_por_cliente', _id: bucket.key } });
+                bulkOps.push(doc);
+            });
+
+            if (bulkOps.length > 0) {
+                await esClient.bulk({ body: bulkOps, refresh: true });
+            }
+
+            this.checkpoint.aggregated_indexes.clickeat_ventas_por_cliente.last_rebuild = new Date().toISOString();
+            this.checkpoint.aggregated_indexes.clickeat_ventas_por_cliente.clients_updated = result.aggregations.clientes.buckets.length;
+            console.log(`✅ ${result.aggregations.clientes.buckets.length} clientes agregados`);
+        } catch (error) {
+            console.error('❌ Error:', error.message);
+        }
     }
 
     // 📱 Estadísticas por teléfono (incluye guests)
     async rebuildPhoneStats() {
         console.log('📱 Reconstruyendo estadísticas por teléfono...');
         
-        // TODO: Implementar agregación por número de teléfono
-        // Agrupar todas las compras por teléfono (incluye guests sin cuenta)
-        // Detectar: múltiples nombres/emails para mismo teléfono,
-        // conversión de guest a cliente registrado, patrones de compra
-        
-        this.checkpoint.aggregated_indexes.clickeat_ventas_por_telefono.last_rebuild = new Date().toISOString();
-        console.log('✅ Estadísticas por teléfono actualizadas');
+        try {
+            const indexExists = await esClient.indices.exists({ index: 'clickeat_ventas_por_telefono' });
+            if (!indexExists) {
+                await esClient.indices.create({
+                    index: 'clickeat_ventas_por_telefono',
+                    mappings: {
+                        properties: {
+                            telefono: { type: 'keyword' },
+                            nombre: { type: 'text', fields: { keyword: { type: 'keyword' } } },
+                            email: { type: 'keyword' },
+                            ciudad: { type: 'keyword' },
+                            companias: {
+                                type: 'nested',
+                                properties: {
+                                    id_compania: { type: 'keyword' },
+                                    nombre_compania: { type: 'keyword' }
+                                }
+                            },
+                            total_ordenes: { type: 'integer' },
+                            gasto_total: { type: 'float' },
+                            ticket_promedio: { type: 'float' },
+                            primera_compra: { type: 'date' },
+                            ultima_compra: { type: 'date' },
+                            dias_sin_compra: { type: 'integer' },
+                            productos_favoritos: {
+                                type: 'nested',
+                                properties: {
+                                    nombre: { type: 'keyword' },
+                                    veces_ordenado: { type: 'integer' }
+                                }
+                            },
+                            ingredientes_favoritos: { type: 'keyword' },
+                            segmento: { type: 'keyword' }
+                        }
+                    }
+                });
+            }
+
+            // Primero agregamos por teléfono desde facturas
+            const result = await esClient.search({
+                index: 'clickeat_facturas',
+                size: 0,
+                aggs: {
+                    telefonos: {
+                        terms: { field: 'telefono', size: 100000 },
+                        aggs: {
+                            total_ordenes: { value_count: { field: 'id_factura' } },
+                            gasto_total: { sum: { field: 'monto_total' } },
+                            ticket_promedio: { avg: { field: 'monto_total' } },
+                            primera_compra: { min: { field: 'fecha_factura' } },
+                            ultima_compra: { max: { field: 'fecha_factura' } },
+                            nombre: { terms: { field: 'nombre_cliente.keyword', size: 1 } },
+                            ciudad: { terms: { field: 'ciudad.keyword', size: 1 } },
+                            companias: { terms: { field: 'id_compania', size: 10 } }
+                        }
+                    }
+                }
+            });
+
+            const bulkOps = [];
+            const now = new Date();
+            
+            // Procesar cada teléfono
+            for (const bucket of result.aggregations.telefonos.buckets) {
+                const telefono = bucket.key;
+                const ultimaCompra = new Date(bucket.ultima_compra.value);
+                const diasSinCompra = Math.floor((now - ultimaCompra) / (1000 * 60 * 60 * 24));
+                
+                // Segmentación automática
+                let segmento = 'ocasional';
+                if (bucket.gasto_total.value > 500000) {
+                    segmento = diasSinCompra > 90 ? 'vip_inactivo' : 'vip';
+                } else if (bucket.total_ordenes.value > 20) {
+                    segmento = diasSinCompra > 90 ? 'frecuente_inactivo' : 'frecuente';
+                } else if (diasSinCompra > 180) {
+                    segmento = 'perdido';
+                } else if (diasSinCompra > 90) {
+                    segmento = 'inactivo';
+                }
+
+                // Obtener productos favoritos para este teléfono
+                const productosResult = await esClient.search({
+                    index: 'clickeat_factura_detalles',
+                    size: 0,
+                    query: {
+                        bool: {
+                            must: [
+                                { term: { telefono: telefono } }
+                            ]
+                        }
+                    },
+                    aggs: {
+                        productos: {
+                            terms: { field: 'nombre_producto.keyword', size: 5 },
+                            aggs: {
+                                cantidad: { sum: { field: 'cantidad' } }
+                            }
+                        },
+                        ingredientes: {
+                            terms: { field: 'ingredientes.keyword', size: 10 }
+                        }
+                    }
+                });
+
+                const productosFavoritos = productosResult.aggregations?.productos?.buckets.map(p => ({
+                    nombre: p.key,
+                    veces_ordenado: Math.round(p.cantidad.value)
+                })) || [];
+
+                const ingredientesFavoritos = productosResult.aggregations?.ingredientes?.buckets.map(i => i.key) || [];
+
+                const doc = {
+                    telefono: telefono,
+                    nombre: bucket.nombre.buckets[0]?.key || 'Cliente',
+                    ciudad: bucket.ciudad.buckets[0]?.key || '',
+                    companias: bucket.companias.buckets.map(c => ({ id_compania: c.key })),
+                    total_ordenes: bucket.total_ordenes.value,
+                    gasto_total: bucket.gasto_total.value,
+                    ticket_promedio: bucket.ticket_promedio.value,
+                    primera_compra: bucket.primera_compra.value_as_string,
+                    ultima_compra: bucket.ultima_compra.value_as_string,
+                    dias_sin_compra: diasSinCompra,
+                    segmento: segmento,
+                    productos_favoritos: productosFavoritos,
+                    ingredientes_favoritos: ingredientesFavoritos
+                };
+
+                bulkOps.push({ index: { _index: 'clickeat_ventas_por_telefono', _id: telefono } });
+                bulkOps.push(doc);
+
+                // Ejecutar bulk cada 100 registros para evitar timeouts
+                if (bulkOps.length >= 200) {
+                    await esClient.bulk({ body: bulkOps, refresh: false });
+                    bulkOps.length = 0;
+                    process.stdout.write('.');
+                }
+            }
+
+            // Ejecutar bulk final
+            if (bulkOps.length > 0) {
+                await esClient.bulk({ body: bulkOps, refresh: true });
+            }
+
+            this.checkpoint.aggregated_indexes.clickeat_ventas_por_telefono.last_rebuild = new Date().toISOString();
+            this.checkpoint.aggregated_indexes.clickeat_ventas_por_telefono.phones_updated = result.aggregations.telefonos.buckets.length;
+            console.log(`\n✅ ${result.aggregations.telefonos.buckets.length} teléfonos agregados`);
+        } catch (error) {
+            console.error('❌ Error:', error.message);
+        }
     }
 }
 

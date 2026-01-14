@@ -22,6 +22,7 @@
     "sync:detect": "node src/scripts/sync-manager.js detect",
     "sync:incremental": "node src/scripts/sync-manager.js sync",
     "sync:rebuild": "node src/scripts/sync-manager.js rebuild",
+    "sync:build-customer-index": "node src/scripts/build-customer-index.js",
     "sync:clientes": "node src/scripts/sync-manager.js sync tbClientes",
     "sync:facturas": "node src/scripts/sync-manager.js sync tbFactura",
     "sync:productos": "node src/scripts/sync-manager.js sync tbCatalogo",
