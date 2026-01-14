@@ -10,7 +10,7 @@ elastic-search/
 │   ├── sync-manager.js         # Sistema de sincronización incremental
 │   ├── setup-complete-system.js   # Configuración completa multiplataforma
 │   ├── utils.js               # Menú interactivo de utilidades
-│   ├── check-indices.js       # Verificación de índices
+│   ├── check-indices.js       # Verificación de índices (8 tablas + 3 agregados)
 │   ├── demo-days-calculation.js   # Demo de cálculo dinámico
 │   ├── migrate-simple.js      # Migración de prueba (5K registros)
 │   ├── migrate-full.js        # Migración completa (879K registros)
@@ -101,6 +101,9 @@ npm run sync:incremental
 - **Reactivación inteligente** basada en historial
 - **Productos con ingredientes** asociados
 - **Performance por restaurante** y zona
+- **Segmentación de clientes** (VIP, frecuentes, inactivos)
+- **Patrones de comportamiento** por cliente
+- **Lifetime value** y retención de clientes
 - **Cálculo dinámico** de días sin compra
 
 ### ✅ **Multiplataforma**

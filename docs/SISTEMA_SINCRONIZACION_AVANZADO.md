@@ -3,12 +3,24 @@
 ## 🎯 OBJETIVOS AVANZADOS
 
 1. **Sincronización Incremental**: Solo migrar datos nuevos/modificados
-2. **Índices Agregados**: Ventas pre-calculadas por producto y restaurante
+2. **Índices Agregados**: Ventas pre-calculadas por producto, restaurante, cliente y teléfono
 3. **Sistema de Tracking**: Detectar cambios desde última sincronización
+4. **🏢 Multi-Compañía**: Todos los índices incluyen campos de compañía para filtrado
 
 ---
 
-## 📊 ESTRUCTURA COMPLETA (8 TABLAS + 2 AGREGADOS)
+## 🏢 ARQUITECTURA MULTI-COMPAÑÍA
+
+✅ **Todos los índices incluyen información de compañía**  
+✅ **Filtrado eficiente por una o múltiples compañías**  
+✅ **Reportes consolidados y comparativos entre regiones**  
+✅ **Índice por teléfono soporta múltiples compañías por usuario**
+
+Ver documentación completa: [ARQUITECTURA_MULTICOMPANIA.md](./ARQUITECTURA_MULTICOMPANIA.md)
+
+---
+
+## 📊 ESTRUCTURA COMPLETA (8 TABLAS + 4 AGREGADOS)
 
 ### 📋 TABLAS PRINCIPALES (Sincronización Incremental)
 | # | Tabla | Registros | Campo Fecha | Índice ES | Sincronización |
@@ -27,6 +39,8 @@
 |---|--------|-------|---------------|-----------|
 | 9 | **clickeat_ventas_por_producto** | tbFactura + tbFacturaDetalle + tbFacturaIngredientes | Diaria/Incremental | Análisis productos + ingredientes |
 | 10 | **clickeat_ventas_por_restaurante** | tbFactura + tbRestaurantes + tbCompania | Diaria/Incremental | Análisis por restaurante/zona |
+| 11 | **clickeat_ventas_por_cliente** | tbFactura + tbClientes | Diaria/Incremental | Segmentación y comportamiento de clientes |
+| 12 | **clickeat_ventas_por_telefono** | tbFactura (incluye guests) | Diaria/Incremental | Análisis por teléfono + conversión guests |
 
 ---
 
@@ -104,6 +118,13 @@ WHERE f.Pagado = 1
   "id_producto": 789,
   "codigo_producto": "HAM-001",
   "nombre_producto": "Hamburguesa Clásica",
+  
+  "compania": {
+    "id_compania": 3,
+    "nombre_compania": "ClickEat Costa Rica",
+    "pais": "Costa Rica"
+  },
+  
   "ventas_totales": {
     "cantidad_vendida": 2450,
     "monto_total": 11025000.00,
@@ -161,8 +182,13 @@ WHERE f.Pagado = 1
 {
   "id_restaurante": 125,
   "nombre_restaurante": "Burger Palace Escazú",
-  "id_compania": 3,
-  "nombre_compania": "ClickEat Costa Rica",
+  
+  "compania": {
+    "id_compania": 3,
+    "nombre_compania": "ClickEat Costa Rica",
+    "pais": "Costa Rica"
+  },
+  
   "ventas_totales": {
     "monto_total": 45000000.00,
     "numero_ordenes": 5000,
@@ -202,6 +228,257 @@ WHERE f.Pagado = 1
     }
   ],
   "fecha_actualizacion": "2026-01-13T10:30:00Z"
+}
+```
+
+### 3. clickeat_ventas_por_cliente
+
+**Fuente**: Agregación de datos de tbFactura, tbClientes, tbClientesDireccion  
+**Propósito**: Segmentación de clientes y análisis de comportamiento de compra
+
+```json
+{
+  "id_cliente": 12345,
+  "nombre_cliente": "Juan Pérez",
+  "email": "juan.perez@email.com",
+  "telefono": "+506-8888-9999",
+  "fecha_registro": "2023-05-15T10:30:00Z",
+  
+  "compania": {
+    "id_compania": 3,
+    "nombre_compania": "ClickEat Costa Rica",
+    "pais": "Costa Rica"
+  },
+  
+  "segmento": "VIP",
+  "comportamiento_compra": {
+    "total_ordenes": 45,
+    "gasto_total": 900000.00,
+    "ticket_promedio": 20000.00,
+    "frecuencia_compra": "quincenal",
+    "primera_compra": "2023-05-20T12:00:00Z",
+    "ultima_compra": "2025-12-20T19:30:00Z",
+    "dias_sin_compra": 24
+  },
+  "ventas_por_periodo": {
+    "ultimos_7_dias": { "monto": 0.00, "ordenes": 0 },
+    "ultimos_30_dias": { "monto": 60000.00, "ordenes": 3 },
+    "ultimos_90_dias": { "monto": 180000.00, "ordenes": 9 }
+  },
+  "productos_favoritos": [
+    {
+      "id_producto": 456,
+      "nombre_producto": "Pizza Pepperoni",
+      "veces_ordenado": 12,
+      "monto_total": 240000.00,
+      "porcentaje_preferencia": 26.7,
+      "ingredientes_preferidos": ["Pepperoni", "Queso Extra"]
+    },
+    {
+      "id_producto": 789,
+      "nombre_producto": "Hamburguesa BBQ",
+      "veces_ordenado": 8,
+      "monto_total": 160000.00,
+      "porcentaje_preferencia": 17.8
+    }
+  ],
+  "restaurantes_preferidos": [
+    {
+      "id_restaurante": 125,
+      "nombre_restaurante": "Pizza Express Centro",
+      "veces_ordenado": 20,
+      "monto_total": 400000.00,
+      "zona": "Centro"
+    },
+    {
+      "id_restaurante": 200,
+      "nombre_restaurante": "Burger Palace",
+      "veces_ordenado": 15,
+      "monto_total": 300000.00,
+      "zona": "Escazú"
+    }
+  ],
+  "patrones_temporales": {
+    "horarios_preferidos": {
+      "almuerzo": 15,
+      "cena": 30
+    },
+    "dias_preferidos": {
+      "viernes": 12,
+      "sabado": 15,
+      "domingo": 10
+    },
+    "estacionalidad": {
+      "enero": 3,
+      "febrero": 4,
+      "diciembre": 6
+    }
+  },
+  "direcciones_entrega": [
+    {
+      "zona": "Centro",
+      "direccion": "Av. Central, San José",
+      "veces_usado": 25
+    },
+    {
+      "zona": "Chapinero",
+      "direccion": "Oficina - Torre Norte",
+      "veces_usado": 20
+    }
+  ],
+  "metricas_retencion": {
+    "lifetime_value": 900000.00,
+    "tiempo_como_cliente_dias": 611,
+    "probabilidad_reactivacion": 0.78,
+    "riesgo_churn": 0.22,
+    "categoria_lealtad": "Muy Alto"
+  },
+  "recomendaciones": {
+    "productos_sugeridos": [
+      "Pizza Hawaiana",
+      "Hamburguesa Deluxe"
+    ],
+    "restaurantes_sugeridos": [
+      "Pizza Palace Escazú"
+    ],
+    "ofertas_personalizadas": [
+      "20% descuento en Pizzas los viernes",
+      "Combo familiar para domingos"
+    ]
+  },
+  "fecha_actualizacion": "2026-01-13T10:30:00Z"
+}
+```
+
+### 4. clickeat_ventas_por_telefono
+
+**Fuente**: Agregación de datos de tbFactura, tbClientes (incluye guests sin ID)  
+**Propósito**: Análisis completo por teléfono, capturando usuarios guest y detectando conversiones
+
+```json
+{
+  "telefono": "+506-8888-9999",
+  "telefono_normalizado": "50688889999",
+  "tipo_usuario": "convertido",
+  
+  "identidades": [
+    {
+      "id_cliente": 12345,
+      "nombre": "Juan Pérez García",
+      "email": "juan.perez@gmail.com",
+      "tipo": "principal"
+    },
+    {
+      "id_cliente": null,
+      "nombre": "Juan Perez",
+      "email": "jperez@hotmail.com",
+      "tipo": "guest"
+    }
+  ],
+  
+  "historial_compras": {
+    "total_ordenes": 58,
+    "ordenes_como_guest": 12,
+    "ordenes_registrado": 46,
+    "fecha_primera_compra": "2023-03-10T18:45:00Z",
+    "fecha_ultima_compra": "2025-12-20T19:30:00Z",
+    "fecha_conversion": "2023-05-15T10:30:00Z",
+    "dias_hasta_conversion": 66
+  },
+  
+  "metricas_financieras": {
+    "gasto_total": 1150000.00,
+    "gasto_como_guest": 250000.00,
+    "gasto_registrado": 900000.00,
+    "ticket_promedio": 19827.59
+  },
+  
+  "productos_favoritos": [
+    {
+      "id_producto": 456,
+      "nombre_producto": "Pizza Pepperoni",
+      "veces_ordenado": 18,
+      "ordenes_guest": 4,
+      "ordenes_registrado": 14
+    }
+  ],
+  
+  "analisis_identidad": {
+    "numero_identidades": 2,
+    "nombres_usados": ["Juan Pérez García", "Juan Perez"],
+    "emails_usados": ["juan.perez@gmail.com", "jperez@hotmail.com"],
+    "hay_inconsistencias": true
+  },
+  
+  "segmentacion": {
+    "segmento_actual": "VIP",
+    "lifetime_value": 1150000.00,
+    "valor_conversion": 900000.00
+  },
+  
+  "fecha_actualizacion": "2026-01-13T10:30:00Z"
+}
+```
+
+---
+
+## 📈 COMPARATIVA DE ÍNDICES AGREGADOS
+
+| Índice | Registros Base | Frecuencia Update | Uso Principal |
+|--------|----------------|-------------------|---------------|
+| **clickeat_ventas_por_producto** | 879,962 facturas | Diario | Marketing de productos |
+| **clickeat_ventas_por_restaurante** | 879,962 facturas + 171 restaurantes | Diario | Análisis operacional |  
+| **clickeat_ventas_por_cliente** | 879,962 facturas + 773,700 clientes | Semanal | CRM registrados |
+| **clickeat_ventas_por_telefono** | 879,962 facturas (incluye guests) | Diario | CRM completo + Conversión |
+
+---
+
+## 🎯 CASOS DE USO IMPLEMENTADOS
+
+### **Reactivación Inteligente**
+```json
+{
+  "query_reactivacion": {
+    "clientes_objetivo": "segmento:VIP AND dias_sin_compra:[30 TO 60]",
+    "productos_recomendados": "productos_favoritos",
+    "restaurante_sugerido": "restaurantes_preferidos[0]",
+    "oferta_personalizada": "20% descuento en tu producto favorito"
+  }
+}
+```
+
+### **Conversión de Guests**
+```json
+{
+  "query_conversion": {
+    "target": "tipo_usuario:guest AND ordenes_como_guest:[3 TO *]",
+    "incentivo": "Registrate y obtén 20% + puntos retroactivos",
+    "canal": "WhatsApp",
+    "productos_mencionados": "productos_favoritos[0]"
+  }
+}
+```
+
+### **Análisis de Performance**
+```json
+{
+  "query_performance": {
+    "restaurante_top": "ORDER BY ventas_totales.monto_total DESC",
+    "productos_estrella": "productos_top[0] WHERE participacion > 10.0",
+    "clientes_vip": "segmento:VIP ORDER BY lifetime_value DESC"
+  }
+}
+```
+
+### **Segmentación Automática**
+```json
+{
+  "segmentacion": {
+    "VIP": "gasto_total > 500000 AND total_ordenes > 20",
+    "Frecuente": "total_ordenes > 10 AND dias_sin_compra < 30", 
+    "En_Riesgo": "segmento:(VIP OR Frecuente) AND dias_sin_compra > 45",
+    "Guest_Valioso": "tipo_usuario:guest AND gasto_como_guest > 100000"
+  }
 }
 ```
 

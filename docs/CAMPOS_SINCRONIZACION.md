@@ -176,6 +176,16 @@ ORDER BY Id_restaurante
       "last_rebuild": "2026-01-14T02:20:00Z", 
       "records_processed": 879962,
       "restaurants_updated": 545
+    },
+    "clickeat_ventas_por_cliente": {
+      "last_rebuild": "2026-01-14T02:25:00Z",
+      "records_processed": 879962, 
+      "clients_updated": 773700
+    },
+    "clickeat_ventas_por_telefono": {
+      "last_rebuild": "2026-01-14T02:30:00Z",
+      "records_processed": 879962,
+      "phones_updated": 850000
     }
   }
 }

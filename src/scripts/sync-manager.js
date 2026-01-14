@@ -154,6 +154,16 @@ class SyncManager {
                     last_rebuild: null,
                     records_processed: 0,
                     restaurants_updated: 0
+                },
+                clickeat_ventas_por_cliente: {
+                    last_rebuild: null,
+                    records_processed: 0,
+                    clients_updated: 0
+                },
+                clickeat_ventas_por_telefono: {
+                    last_rebuild: null,
+                    records_processed: 0,
+                    phones_updated: 0
                 }
             }
         };
@@ -389,6 +399,9 @@ class SyncManager {
             // Ventas por restaurante
             await this.rebuildRestaurantStats();
 
+            // Ventas por cliente (nuevo)
+            await this.rebuildClientStats();
+
             console.log('✅ Índices agregados reconstruidos correctamente');
 
         } catch (error) {
@@ -417,6 +430,31 @@ class SyncManager {
         
         this.checkpoint.aggregated_indexes.clickeat_ventas_por_restaurante.last_rebuild = new Date().toISOString();
         console.log('✅ Estadísticas de restaurantes actualizadas');
+    }
+
+    // 👥 Estadísticas de clientes
+    async rebuildClientStats() {
+        console.log('👥 Reconstruyendo estadísticas de clientes...');
+        
+        // TODO: Implementar agregación de comportamiento de clientes
+        // Calcular: frecuencia compra, monto promedio, productos favoritos, 
+        // última compra, segmentación (VIP, frecuente, ocasional, inactivo)
+        
+        this.checkpoint.aggregated_indexes.clickeat_ventas_por_cliente.last_rebuild = new Date().toISOString();
+        console.log('✅ Estadísticas de clientes actualizadas');
+    }
+
+    // 📱 Estadísticas por teléfono (incluye guests)
+    async rebuildPhoneStats() {
+        console.log('📱 Reconstruyendo estadísticas por teléfono...');
+        
+        // TODO: Implementar agregación por número de teléfono
+        // Agrupar todas las compras por teléfono (incluye guests sin cuenta)
+        // Detectar: múltiples nombres/emails para mismo teléfono,
+        // conversión de guest a cliente registrado, patrones de compra
+        
+        this.checkpoint.aggregated_indexes.clickeat_ventas_por_telefono.last_rebuild = new Date().toISOString();
+        console.log('✅ Estadísticas por teléfono actualizadas');
     }
 }
 

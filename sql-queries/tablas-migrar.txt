@@ -8,9 +8,11 @@ TABLAS PRINCIPALES (8):
 - tbCompania (~100 registros)
 - tbRestaurantes (~500 registros)
 
-ÍNDICES AGREGADOS (2):
+ÍNDICES AGREGADOS (3):
 - clickeat_ventas_por_producto (ventas + ingredientes asociados)
 - clickeat_ventas_por_restaurante (performance por restaurante/zona)
+- clickeat_ventas_por_cliente (comportamiento y segmentación de clientes)
+- clickeat_ventas_por_telefono (análisis por teléfono, incluye guests sin cuenta)
 
 SINCRONIZACIÓN:
 - Incremental: Solo datos nuevos/modificados desde última sync
@@ -21,3 +23,6 @@ NUEVOS ANÁLISIS:
 - Productos más vendidos con ingredientes
 - Performance por restaurante y zona  
 - Reactivación por producto/restaurante preferido
+- Segmentación de clientes (VIP, frecuentes, inactivos)
+- Patrones de compra y comportamiento por cliente
+- Análisis de lifetime value y retención

@@ -105,7 +105,9 @@ npm run migrate:full              # Migración completa
 
 #### 2. **Índices Agregados**
 - ⚠️ **clickeat_ventas_por_producto** - Ventas + ingredientes
-- ⚠️ **clickeat_ventas_por_restaurante** - Performance por restaurante
+- ⚠️ **clickeat_ventas_por_restaurante** - Performance por restaurante  
+- ⚠️ **clickeat_ventas_por_cliente** - Segmentación y comportamiento
+- ⚠️ **clickeat_ventas_por_telefono** - Análisis por teléfono (incluye guests)
 - ⚠️ **rebuildProductStats()** - Implementación
 - ⚠️ **rebuildRestaurantStats()** - Implementación
 
@@ -170,7 +172,7 @@ npm run migrate:full              # Migración completa
 ### **✅ Logros Principales:**
 1. **Crisis resuelta**: Filtro `Pagado = 1` corrige lógica de negocio
 2. **Sistema escalable**: Sincronización incremental vs migración completa
-3. **Arquitectura robusta**: 8 tablas + 2 índices agregados + tracking
+3. **Arquitectura robusta**: 8 tablas + 4 índices agregados + tracking
 4. **Documentación completa**: Estrategias, campos, queries, procedimientos
 
 ### **⚠️ Riesgos Actuales:**
