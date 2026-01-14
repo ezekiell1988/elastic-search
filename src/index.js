@@ -18,9 +18,6 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Servir archivos estáticos desde la carpeta public
-app.use(express.static(path.join(__dirname, '../public')));
-
 // Verificar conexión al iniciar
 await verifyConnection();
 
@@ -29,15 +26,13 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes
-app.use('/api/customers', customerRoutes);
-
-// Documentación básica
-app.get('/', (req, res) => {
+// Documentación de la API
+app.get('/api', (req, res) => {
   res.json({
     message: 'API de Reactivación de Clientes',
     version: '1.0.0',
     endpoints: {
+      indexTotals: 'GET /api/customers/index-totals - Totales de índices',
       search: 'POST /api/customers/search - Búsqueda avanzada',
       freeText: 'POST /api/customers/free-text-search - Búsqueda por texto libre',
       stats: 'GET /api/customers/inactive-stats - Estadísticas de inactivos',
@@ -46,6 +41,12 @@ app.get('/', (req, res) => {
     }
   });
 });
+
+// Routes de la API
+app.use('/api/customers', customerRoutes);
+
+// Servir archivos estáticos desde la carpeta public (debe ir DESPUÉS de las rutas de la API)
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Error handler
 app.use((err, req, res, next) => {
