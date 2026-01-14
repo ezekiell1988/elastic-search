@@ -33,8 +33,8 @@ WORKDIR /app
 # Copiar archivos de dependencias
 COPY package*.json ./
 
-# Instalar dependencias de producción y desarrollo
-RUN npm ci --include=dev
+# Instalar todas las dependencias (producción y desarrollo)
+RUN npm ci
 
 # ==============================================================================
 # Stage 3: Builder
@@ -69,7 +69,7 @@ ENV NODE_ENV=production \
 
 # Copiar solo dependencias de producción
 COPY --from=deps /app/package*.json ./
-RUN npm ci --only=production && \
+RUN npm ci --omit=dev && \
     npm cache clean --force
 
 # Copiar código de la app desde builder
