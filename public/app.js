@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTabs();
     setupEnterKeyListeners();
     setupInactiveFilter();
+    loadIndexTotals();
 });
 
 // Setup tabs
@@ -77,6 +78,26 @@ function showLoading(show = true) {
 // Show error
 function showError(message) {
     alert(`❌ Error: ${message}`);
+}
+
+// Load index totals
+async function loadIndexTotals() {
+    try {
+        const response = await fetch(`${API_BASE}/customers/index-totals`);
+        if (!response.ok) {
+            throw new Error('Error cargando totales');
+        }
+        const data = await response.json();
+        
+        document.getElementById('totalCustomers').textContent = data.customers.toLocaleString();
+        document.getElementById('totalInvoices').textContent = data.invoices.toLocaleString();
+        document.getElementById('totalProducts').textContent = data.products.toLocaleString();
+    } catch (error) {
+        console.error('Error cargando totales:', error);
+        document.getElementById('totalCustomers').textContent = 'Error';
+        document.getElementById('totalInvoices').textContent = 'Error';
+        document.getElementById('totalProducts').textContent = 'Error';
+    }
 }
 
 // Free text search

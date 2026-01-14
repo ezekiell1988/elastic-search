@@ -307,6 +307,28 @@ export class CustomerQueryService {
       recent_invoices: invoicesResponse.hits.hits.map(hit => hit._source)
     };
   }
+
+  /**
+   * Obtener totales de los índices
+   */
+  async getIndexTotals() {
+    try {
+      const [customersCount, invoicesCount, productsCount] = await Promise.all([
+        client.count({ index: 'customers' }),
+        client.count({ index: 'invoices' }),
+        client.count({ index: 'products' })
+      ]);
+
+      return {
+        customers: customersCount.count,
+        invoices: invoicesCount.count,
+        products: productsCount.count
+      };
+    } catch (error) {
+      console.error('Error obteniendo totales de índices:', error);
+      throw error;
+    }
+  }
 }
 
 export default new CustomerQueryService();

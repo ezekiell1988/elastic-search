@@ -59,6 +59,20 @@ router.post('/free-text-search', async (req, res) => {
 });
 
 /**
+ * GET /api/customers/index-totals
+ * Obtener totales de índices (clientes, facturas, productos)
+ */
+router.get('/index-totals', async (req, res) => {
+  try {
+    const result = await customerService.getIndexTotals();
+    res.json(result);
+  } catch (error) {
+    console.error('Error obteniendo totales:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/customers/inactive-stats
  * Estadísticas de clientes inactivos
  * 
