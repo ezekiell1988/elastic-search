@@ -1,0 +1,23 @@
+TABLAS PRINCIPALES (8):
+- tbFactura (879,962 registros pagados)
+- tbFacturaDetalle (productos de la factura - ~5M registros)
+- tbFacturaIngredientes (ingredientes por producto - ~500K registros)
+- tbClientes (773,700 registros)
+- tbClientesDireccion (direcciones por cliente - ~1.5M registros)
+- tbCatalogo (Lista de productos - 2,427 registros)
+- tbCompania (~100 registros)
+- tbRestaurantes (~500 registros)
+
+ÍNDICES AGREGADOS (2):
+- clickeat_ventas_por_producto (ventas + ingredientes asociados)
+- clickeat_ventas_por_restaurante (performance por restaurante/zona)
+
+SINCRONIZACIÓN:
+- Incremental: Solo datos nuevos/modificados desde última sync
+- Checkpoint: .sync-checkpoint.json con timestamps
+- Automatización: Cron job diario 2:00 AM
+
+NUEVOS ANÁLISIS:
+- Productos más vendidos con ingredientes
+- Performance por restaurante y zona  
+- Reactivación por producto/restaurante preferido

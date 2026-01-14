@@ -2,7 +2,16 @@
 
 Este documento muestra el mapeo entre las columnas de SQL Server y la estructura esperada en Elasticsearch.
 
-## tbClientes
+**📋 TABLAS A MIGRAR:**
+- tbClientes (+ direcciones)
+- tbFactura (+ detalle + ingredientes) 
+- tbCatalogo (productos)
+- tbCompania
+- tbRestaurantes
+
+---
+
+## 1. tbClientes
 
 **Columnas encontradas:**
 - `Id_cliente`

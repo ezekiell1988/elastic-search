@@ -176,7 +176,7 @@ async function migrateOrdenes(pool) {
       f.Id_restaurante,
       f.Id_compania
     FROM tbFactura f
-    WHERE f.Fecha_facturado IS NOT NULL
+    WHERE f.Fecha_facturado IS NOT NULL AND f.Pagado = 1
     ORDER BY f.Fecha_facturado DESC
   `;
 

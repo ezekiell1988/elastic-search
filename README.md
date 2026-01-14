@@ -1,52 +1,232 @@
-# 🎯 Demo: Sistema de Reactivación de Clientes con Elasticsearch
+# 🎯 Sistema de Reactivación de Clientes - ClickEat Database
 
-Sistema completo para identificar y reactivar clientes inactivos usando Elasticsearch. Permite consultas complejas tipo: **"mujer, pepperoni, San José, ya no compra en 3 meses"** y exportar resultados a Excel.
+Sistema completo para migrar, analizar y reactivar clientes inactivos usando Elasticsearch. Incluye migración masiva desde SQL Server, validación de datos y análisis avanzado de comportamiento de clientes.
 
 ---
 
-## 🚀 Quick Start (5 minutos)
+## ⚡ Quick Start
+
+### Opción A: Migración desde SQL Server (ClickEat)
 
 ```bash
 # 1. Instalar dependencias
 npm install
 
-# 2. Verificar configuración
-./verify.sh
+# 2. Configurar .env con credenciales SQL Server y Elasticsearch
+cp .env.example .env
 
-# 3. Crear índices
+# 3. Ver estructura de base de datos
+npm run sql sql-queries/get-schema.sql
+
+# 4. Migración rápida (pruebas: 1K clientes, 5K órdenes)
+npm run migrate:simple
+
+# 5. Validar datos migrados
+npm run migrate:validate
+
+# 6. Análisis de reactivación de clientes
+npm run query:reactivation
+```
+
+### Opción B: Demo con Datos Sintéticos
+
+```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Crear índices
 npm run setup
 
-# 4. Generar datos de prueba
+# 3. Generar 800K+ clientes de prueba
 npm run seed
 
-# 5. Iniciar servidor
+# 4. Iniciar servidor web
 npm start
 
-# 6. En otra terminal, probar
+# 5. Probar consultas
 npm run query
 ```
 
-¡Listo! Tu demo está funcionando en `http://localhost:3000`
+---
+
+## 🌟 Características Principales
+
+### 🔄 Migración de Datos
+- ✅ **Migración masiva** desde SQL Server (773K clientes, 1M+ órdenes)
+- ✅ **Sistema de checkpoints** para reanudar migraciones interrumpidas
+- ✅ **Validación automática** de integridad de datos
+- ✅ **Batching optimizado** (5K SQL → 1K ES con reintentos)
+
+### 📊 Análisis de Clientes
+- ✅ **Última compra por cliente** con días de inactividad
+- ✅ **Segmentación automática** (Activos, En Riesgo, Inactivos, Perdidos)
+- ✅ **Detección de VIPs en riesgo** (alto valor + inactivos)
+- ✅ **Top clientes por valor** con estado de actividad
+- ✅ **Recomendaciones de campaña** automáticas
+
+### 🔍 Búsquedas Avanzadas
+- ✅ **Búsquedas complejas** con múltiples filtros
+- ✅ **Búsqueda de texto libre** (conversacional)
+- ✅ **Filtros por género, ubicación, productos, rango de fechas**
+- ✅ **Exportación a Excel** con formato y resumen
+
+### 🛠️ Herramientas
+- ✅ **Ejecutor de scripts SQL** con soporte para delimiter GO
+- ✅ **API REST** completa para integraciones
+- ✅ **Base de datos multicompañía**
+- ✅ **Identificación por teléfono** para usuarios no logueados
 
 ---
 
-## 🌟 Características
+## 📚 Documentación Completa
 
-- ✅ **800k+ clientes** y millones de facturas de prueba
-- ✅ **Búsquedas complejas** con múltiples filtros
-- ✅ **Búsqueda de texto libre** (conversacional)
-- ✅ **Exportación a Excel** con formato y resumen
-- ✅ **API REST** completa
-- ✅ **Base de datos multicompañía**
-- ✅ **Identificación por teléfono** (para usuarios no logueados)
+### Guías Principales
+- **[RESUMEN_SISTEMA.md](RESUMEN_SISTEMA.md)** - 📌 Resumen completo del sistema y estado actual
+- **[REACTIVACION_CLIENTES.md](REACTIVACION_CLIENTES.md)** - 🎯 Guía completa del sistema de reactivación
+- **[MIGRACION_MASIVA.md](MIGRACION_MASIVA.md)** - 🔄 Migración de millones de registros
+- **[MAPEO_COLUMNAS.md](MAPEO_COLUMNAS.md)** - 📋 Mapeo SQL Server → Elasticsearch
 
-## 📋 Requisitos Previos
+### Guías Rápidas
+- **[GUIA_RAPIDA.md](GUIA_RAPIDA.md)** - Inicio rápido con datos sintéticos
+- **[MIGRACION_CLICKEAT.md](MIGRACION_CLICKEAT.md)** - Migración desde ClickEat DB
+- **[EJEMPLOS_CONSULTAS.md](EJEMPLOS_CONSULTAS.md)** - Ejemplos de consultas
+
+---
+
+## 🚀 Comandos Disponibles
+
+### Análisis de Base de Datos (SQL Server)
+```bash
+npm run sql sql-queries/get-schema.sql        # Ver estructura de tablas
+npm run sql sql-queries/get-sample-data.sql   # Ver datos de muestra
+npm run sql sql-queries/test-columns.sql      # Verificar columnas
+```
+
+### Migración desde SQL Server
+```bash
+npm run migrate:simple      # Migración rápida (1K clientes, 5K órdenes)
+npm run migrate:full        # Migración completa (773K clientes, 1M+ órdenes)
+npm run migrate:resume      # Reanudar migración interrumpida
+npm run migrate:validate    # Validar datos migrados vs SQL Server
+```
+
+### Consultas y Análisis
+```bash
+npm run query:clickeat      # Consultas generales sobre datos migrados
+npm run query:reactivation  # ⭐ Análisis completo de reactivación de clientes
+```
+
+### Demo con Datos Sintéticos
+```bash
+npm run setup               # Crear índices de demo
+npm run seed                # Generar datos de prueba (800K+ clientes)
+npm run query               # Probar consultas de demo
+npm start                   # Iniciar servidor web demo (puerto 3000)
+```
+
+---
+
+## 📊 Sistema de Reactivación de Clientes
+
+El sistema incluye **5 consultas especializadas** para identificar y reactivar clientes:
+
+### 1️⃣ Última Compra por Cliente
+```bash
+npm run query:reactivation
+```
+
+Muestra los clientes más recientes con:
+- Fecha de última compra
+- Días de inactividad
+- Total de órdenes
+- Monto total gastado
+- Código de colores: 🟢 Activo | 🟡 En Riesgo | 🔴 Inactivo
+
+### 2️⃣ Clientes Inactivos
+Identifica clientes que no han comprado en más de X días (configurable).
+
+**Salida de ejemplo:**
+```
+⚠️  CLIENTES INACTIVOS (Más de 30 días)
+Total: 15,234 clientes
+
+ID      │ Nombre               │ Días │ Órdenes │ Gasto Total
+98765   │ Carlos Ramírez       │  137 │     28  │ ₡520,000
+54321   │ Ana López            │  101 │     15  │ ₡380,000
+```
+
+### 3️⃣ Segmentación Automática
+Divide clientes en 4 segmentos:
+- 🟢 **Activos (0-30 días)** - Clientes recientes
+- 🟡 **En Riesgo (30-90 días)** - Necesitan campaña de retención
+- 🔴 **Inactivos (90-180 días)** - Necesitan reactivación
+- ⚫ **Perdidos (+180 días)** - Necesitan reconquista
+
+Incluye **recomendaciones automáticas** de campaña para cada segmento.
+
+### 4️⃣ Top Clientes por Valor
+Identifica los 20 clientes más valiosos y su estado de actividad:
+- Total gastado histórico
+- Número de órdenes
+- Ticket promedio
+- Días desde última compra
+
+### 5️⃣ Clientes VIP en Riesgo 🚨
+**ALERTA CRÍTICA**: Detecta clientes de alto valor (>₡500,000) que llevan más de 45 días sin comprar.
+
+**Acciones recomendadas:**
+- Contacto personalizado por gerente
+- Descuento VIP exclusivo 30%
+- Regalo especial en próxima compra
+
+---
+
+## 🎯 Estrategias de Campaña
+
+### Para Clientes en Riesgo (30-90 días)
+```
+📧 Email: "Te extrañamos, [Nombre]"
+💰 Oferta: 15-20% de descuento
+⏰ Urgencia: Válido por 7 días
+```
+
+### Para Clientes Inactivos (90-180 días)
+```
+📧 Email: "¡Vuelve y recibe un regalo!"
+💰 Oferta: 25% descuento + envío gratis
+🎁 Bonus: Producto favorito con descuento adicional
+⏰ Urgencia: Válido por 5 días
+```
+
+### Para Clientes Perdidos (+180 días)
+```
+📧 Email: "¿Qué pasó? Queremos mejorar"
+📋 Encuesta: Formulario de satisfacción
+💰 Oferta: 30-40% descuento en todo
+🎁 Regalo: Producto gratis en compra mínima
+⏰ Urgencia: Oferta única por 3 días
+```
+
+### Para VIPs en Riesgo
+```
+📞 Llamada: Contacto personal del gerente
+💰 Oferta: Descuento VIP exclusivo 30%
+🎁 Regalo: Producto premium gratis
+🌟 Beneficio: Acceso anticipado a nuevos productos
+```
+
+---
+
+## 📋 Requisitos
 
 - Node.js 18+
-- Elasticsearch Cloud configurado (o local)
+- SQL Server (para migración desde ClickEat)
+- Elasticsearch Cloud o local configurado
 - Archivo `.env` con credenciales
 
-## 🚀 Instalación y Configuración
+---
+
+## ⚙️ Configuración
 
 ### 1. Instalar dependencias
 
@@ -56,12 +236,47 @@ npm install
 
 ### 2. Configurar variables de entorno
 
-El archivo `.env` ya está configurado con tu cluster de Elasticsearch.
+Crear archivo `.env` con:
 
-### 3. Crear índices en Elasticsearch
+```env
+# Elasticsearch
+ELASTIC_CLOUD_ID=your-cloud-id
+ELASTIC_API_KEY=your-api-key
+
+# SQL Server (para migración ClickEat)
+DB_HOST_CLICKEAT=138.59.16.150
+DB_PORT_CLICKEAT=1433
+DB_DATABASE_CLICKEAT=dev_clickeat
+DB_USER_CLICKEAT=your-user
+DB_PASSWORD_CLICKEAT=your-password
+```
+
+### 3. Opción A: Migrar desde SQL Server
+
+### 3. Opción A: Migrar desde SQL Server
 
 ```bash
+# Ver estructura de la base de datos
+npm run sql sql-queries/get-schema.sql
+
+# Migración rápida de prueba
+npm run migrate:simple
+
+# Validar datos
+npm run migrate:validate
+
+# Análisis de reactivación
+npm run query:reactivation
+```
+
+### 3. Opción B: Generar Datos de Demo
+
+```bash
+# Crear índices
 npm run setup
+
+# Generar datos (puede tomar varios minutos)
+npm run seed
 ```
 
 Este comando crea tres índices:
@@ -69,20 +284,12 @@ Este comando crea tres índices:
 - `invoices` - Facturas (encabezado)
 - `products` - Catálogo de productos
 
-### 4. Generar datos de prueba
-
-```bash
-npm run seed
-```
-
-⚠️ **Nota**: Este proceso puede tomar varios minutos dependiendo de la cantidad de datos configurada.
-
 Por defecto genera:
 - **1,000 clientes** por compañía (3 compañías = 3,000 clientes)
 - **~8 facturas** promedio por cliente
 - **50 productos** por compañía
 
-**Para generar más datos** (800k clientes), edita [src/scripts/seed-data.js](src/scripts/seed-data.js):
+**Para generar más datos** (800k clientes), edita `src/scripts/seed-data.js`:
 
 ```javascript
 const NUM_CUSTOMERS_PER_COMPANY = 270000; // 270k * 3 = 810k clientes
