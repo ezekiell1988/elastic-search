@@ -1,0 +1,98 @@
+{
+  "name": "Clientes Inactivos",
+  "requests": [
+    {
+      "name": "1. Búsqueda Avanzada - Mujeres San José Pepperoni",
+      "method": "POST",
+      "url": "http://localhost:3000/api/customers/search",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "gender": "mujer",
+        "city": "San José",
+        "ingredients": ["pepperoni"],
+        "minDaysSinceLastPurchase": 90,
+        "size": 10
+      }
+    },
+    {
+      "name": "2. Búsqueda Texto Libre",
+      "method": "POST",
+      "url": "http://localhost:3000/api/customers/free-text-search",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "searchText": "mujer pepperoni san jose",
+        "minDaysSinceLastPurchase": 90,
+        "size": 10
+      }
+    },
+    {
+      "name": "3. Estadísticas de Inactivos",
+      "method": "GET",
+      "url": "http://localhost:3000/api/customers/inactive-stats"
+    },
+    {
+      "name": "4. Clientes VIP Inactivos",
+      "method": "POST",
+      "url": "http://localhost:3000/api/customers/search",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "customerSegment": "vip",
+        "minDaysSinceLastPurchase": 60,
+        "minTotalSpent": 300,
+        "size": 20
+      }
+    },
+    {
+      "name": "5. Exportar a Excel",
+      "method": "POST",
+      "url": "http://localhost:3000/api/customers/export",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "gender": "mujer",
+        "city": "San José",
+        "ingredients": ["pepperoni"],
+        "minDaysSinceLastPurchase": 90
+      },
+      "note": "Guarda el archivo .xlsx que se descarga"
+    },
+    {
+      "name": "6. Clientes que compraban Hawaiana",
+      "method": "POST",
+      "url": "http://localhost:3000/api/customers/search",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "products": ["Pizza Hawaiana"],
+        "minDaysSinceLastPurchase": 120,
+        "size": 15
+      }
+    },
+    {
+      "name": "7. Inactivos por Ciudad",
+      "method": "POST",
+      "url": "http://localhost:3000/api/customers/search",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "city": "Alajuela",
+        "minDaysSinceLastPurchase": 90,
+        "size": 10
+      }
+    },
+    {
+      "name": "8. Health Check",
+      "method": "GET",
+      "url": "http://localhost:3000/health"
+    }
+  ]
+}

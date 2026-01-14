@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Reactivación de Clientes - Elasticsearch</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🎯 Sistema de Reactivación de Clientes</h1>
+            <p class="subtitle">Powered by Elasticsearch</p>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="search">Búsqueda Rápida</button>
+            <button class="tab-button" data-tab="advanced">Búsqueda Avanzada</button>
+            <button class="tab-button" data-tab="stats">Estadísticas</button>
+        </div>
+
+        <!-- Tab: Búsqueda Rápida -->
+        <div id="search-tab" class="tab-content active">
+            <div class="search-box">
+                <h2>🔍 Búsqueda de Texto Libre</h2>
+                <p class="help-text">Escribe tu consulta en lenguaje natural. Ejemplo: "mujer pepperoni san jose 3 meses"</p>
+                
+                <div class="search-input-group">
+                    <input 
+                        type="text" 
+                        id="freeTextSearch" 
+                        placeholder="mujer, pepperoni, San José, 90 días..."
+                        class="search-input"
+                    >
+                    <button onclick="searchFreeText()" class="btn btn-primary">
+                        Buscar
+                    </button>
+                </div>
+
+                <div class="quick-filters">
+                    <label>
+                        <input type="checkbox" id="onlyInactive" checked>
+                        Solo clientes inactivos (>90 días)
+                    </label>
+                </div>
+
+                <!-- Results for Free Text Search -->
+                <div id="freeTextResults" class="results-section" style="display: none; margin-top: 20px;">
+                    <div class="results-header">
+                        <h3>Resultados</h3>
+                        <div class="results-actions">
+                            <span id="freeTextResultsCount" class="results-count"></span>
+                            <span id="freeTextResultsTime" class="results-time"></span>
+                            <button onclick="exportToExcel('free-text')" class="btn btn-success">
+                                📊 Exportar a Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pagination Top -->
+                    <div class="pagination-container">
+                        <button onclick="previousPage('free-text')" id="freeTextPrevBtnTop" class="btn btn-secondary">
+                            ← Anterior
+                        </button>
+                        <span id="freeTextPageInfoTop" class="page-info">Página 1</span>
+                        <button onclick="nextPage('free-text')" id="freeTextNextBtnTop" class="btn btn-secondary">
+                            Siguiente →
+                        </button>
+                        <div style="margin-left: 20px; display: flex; align-items: center; gap: 10px;">
+                            <label for="freeTextPageSize">Items por página:</label>
+                            <select id="freeTextPageSize" class="form-control" style="width: auto;" onchange="changePageSize('free-text', this.value)">
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100" selected>100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Teléfono</th>
+                                    <th>Email</th>
+                                    <th>Ciudad</th>
+                                    <th>Días sin comprar</th>
+                                    <th>Total gastado</th>
+                                    <th>Compras</th>
+                                    <th>Productos favoritos</th>
+                                    <th>Ingredientes favoritos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="freeTextResultsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination Bottom -->
+                    <div class="pagination-container">
+                        <button onclick="previousPage('free-text')" id="freeTextPrevBtn" class="btn btn-secondary">
+                            ← Anterior
+                        </button>
+                        <span id="freeTextPageInfo" class="page-info">Página 1</span>
+                        <button onclick="nextPage('free-text')" id="freeTextNextBtn" class="btn btn-secondary">
+                            Siguiente →
+                        </button>
+                        <div style="margin-left: 20px; display: flex; align-items: center; gap: 10px;">
+                            <label for="freeTextPageSizeBottom">Items por página:</label>
+                            <select id="freeTextPageSizeBottom" class="form-control" style="width: auto;" onchange="changePageSize('free-text', this.value)">
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100" selected>100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Búsqueda Avanzada -->
+        <div id="advanced-tab" class="tab-content">
+            <div class="search-box">
+                <h2>⚙️ Búsqueda Avanzada</h2>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Género</label>
+                        <select id="gender" class="form-control">
+                            <option value="">Todos</option>
+                            <option value="mujer">Mujer</option>
+                            <option value="hombre">Hombre</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ciudad</label>
+                        <select id="city" class="form-control">
+                            <option value="">Todas</option>
+                            <option value="San José">San José</option>
+                            <option value="Alajuela">Alajuela</option>
+                            <option value="Cartago">Cartago</option>
+                            <option value="Heredia">Heredia</option>
+                            <option value="Limón">Limón</option>
+                            <option value="Puntarenas">Puntarenas</option>
+                            <option value="Guanacaste">Guanacaste</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Compañía</label>
+                        <select id="companyId" class="form-control">
+                            <option value="">Todas</option>
+                            <option value="COMP001">PizzaHut CR</option>
+                            <option value="COMP002">Domino's Pizza CR</option>
+                            <option value="COMP003">Domino's Pizza SV</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Segmento</label>
+                        <select id="segment" class="form-control">
+                            <option value="">Todos</option>
+                            <option value="vip">VIP</option>
+                            <option value="regular">Regular</option>
+                            <option value="ocasional">Ocasional</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="filterInactive" checked>
+                            Filtrar por días sin comprar
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Días sin comprar (mínimo)</label>
+                        <input type="number" id="minDays" class="form-control" value="90" min="0" 
+                               placeholder="Ej: 90">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Días sin comprar (máximo)</label>
+                        <input type="number" id="maxDays" class="form-control" min="0" 
+                               placeholder="Ej: 180">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Gasto mínimo total</label>
+                        <input type="number" id="minSpent" class="form-control" placeholder="$0" min="0">
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Ingredientes favoritos (separados por coma)</label>
+                        <input type="text" id="ingredients" class="form-control" 
+                               placeholder="pepperoni, jamón, piña...">
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Productos favoritos (separados por coma)</label>
+                        <input type="text" id="products" class="form-control" 
+                               placeholder="Pizza Pepperoni, Pizza Hawaiana...">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="searchAdvanced()" class="btn btn-primary">
+                        🔍 Buscar
+                    </button>
+                    <button onclick="clearAdvancedFilters()" class="btn btn-secondary">
+                        🔄 Limpiar
+                    </button>
+                </div>
+
+                <!-- Results for Advanced Search -->
+                <div id="advancedResults" class="results-section" style="display: none; margin-top: 20px;">
+                    <div class="results-header">
+                        <h3>Resultados</h3>
+                        <div class="results-actions">
+                            <span id="advancedResultsCount" class="results-count"></span>
+                            <span id="advancedResultsTime" class="results-time"></span>
+                            <button onclick="exportToExcel('advanced')" class="btn btn-success">
+                                📊 Exportar a Excel
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pagination Top -->
+                    <div class="pagination-container">
+                        <button onclick="previousPage('advanced')" id="advancedPrevBtnTop" class="btn btn-secondary">
+                            ← Anterior
+                        </button>
+                        <span id="advancedPageInfoTop" class="page-info">Página 1</span>
+                        <button onclick="nextPage('advanced')" id="advancedNextBtnTop" class="btn btn-secondary">
+                            Siguiente →
+                        </button>
+                        <div style="margin-left: 20px; display: flex; align-items: center; gap: 10px;">
+                            <label for="advancedPageSize">Items por página:</label>
+                            <select id="advancedPageSize" class="form-control" style="width: auto;" onchange="changePageSize('advanced', this.value)">
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100" selected>100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Teléfono</th>
+                                    <th>Email</th>
+                                    <th>Ciudad</th>
+                                    <th>Días sin comprar</th>
+                                    <th>Total gastado</th>
+                                    <th>Compras</th>
+                                    <th>Productos favoritos</th>
+                                    <th>Ingredientes favoritos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="advancedResultsBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination Bottom -->
+                    <div class="pagination-container">
+                        <button onclick="previousPage('advanced')" id="advancedPrevBtn" class="btn btn-secondary">
+                            ← Anterior
+                        </button>
+                        <span id="advancedPageInfo" class="page-info">Página 1</span>
+                        <button onclick="nextPage('advanced')" id="advancedNextBtn" class="btn btn-secondary">
+                            Siguiente →
+                        </button>
+                        <div style="margin-left: 20px; display: flex; align-items: center; gap: 10px;">
+                            <label for="advancedPageSizeBottom">Items por página:</label>
+                            <select id="advancedPageSizeBottom" class="form-control" style="width: auto;" onchange="changePageSize('advanced', this.value)">
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100" selected>100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Estadísticas -->
+        <div id="stats-tab" class="tab-content">
+            <div class="search-box">
+                <h2>📊 Estadísticas de Clientes Inactivos</h2>
+                <div id="statsContent"></div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+            <div class="spinner"></div>
+            <p>Buscando clientes...</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

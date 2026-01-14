@@ -1,0 +1,297 @@
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│   🎯 DEMO: SISTEMA DE REACTIVACIÓN DE CLIENTES                     │
+│        Powered by Elasticsearch                                     │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+📁 ESTRUCTURA DEL PROYECTO
+══════════════════════════════════════════════════════════════════════
+
+elastic-search/
+├── 📄 README.md                    → Documentación completa
+├── 📄 INICIO_RAPIDO.md            → Guía de 5 minutos
+├── 📄 GUIA_DEMO_CLIENTE.md        → Script para presentación
+├── 📄 EJEMPLOS_CONSULTAS.md       → Ejemplos de API calls
+├── 📄 PRODUCCION.md               → Guía para deploy real
+├── 📄 package.json                → Dependencias
+├── 📄 .env                        → Credenciales Elasticsearch
+├── 📄 .gitignore
+├── 📄 postman-collection.json     → Colección de Postman
+├── 🔧 setup.sh                    → Script de instalación
+│
+└── src/
+    ├── config/
+    │   ├── elasticsearch.js       → Cliente de ES Serverless
+    │   └── indices.js             → Schemas de índices
+    │
+    ├── routes/
+    │   └── customerRoutes.js      → Endpoints de API
+    │
+    ├── services/
+    │   └── customerService.js     → Lógica de búsqueda
+    │
+    ├── scripts/
+    │   ├── setup-indices.js       → Crear índices
+    │   ├── seed-data.js           → Generar datos fake
+    │   └── test-queries.js        → Probar consultas
+    │
+    ├── utils/
+    │   ├── dataGenerator.js       → Faker para datos
+    │   └── excelExporter.js       → Exportar a Excel
+    │
+    └── index.js                   → Servidor Express
+
+
+🚀 COMANDOS PRINCIPALES
+══════════════════════════════════════════════════════════════════════
+
+📦 Instalación
+   npm install
+
+🔧 Crear índices en Elasticsearch
+   npm run setup
+
+🌱 Generar datos de prueba (3,000 clientes)
+   npm run seed
+
+▶️  Iniciar servidor API
+   npm start
+
+🧪 Probar consultas
+   npm run query
+
+
+📊 DATOS GENERADOS (Default)
+══════════════════════════════════════════════════════════════════════
+
+👥 Clientes:      3,000 (1,000 por compañía × 3)
+🧾 Facturas:      ~24,000 (promedio 8 por cliente)
+📦 Productos:     150 (50 por compañía × 3)
+🏢 Compañías:     3 (Pizza Express CR, Sabor Italiano, Fast Food Nacional)
+🚫 Inactivos:     ~30-40% (>90 días sin comprar)
+
+
+🎯 CASOS DE USO PRINCIPALES
+══════════════════════════════════════════════════════════════════════
+
+1️⃣  BÚSQUEDA ESTRUCTURADA
+   "Mujeres de San José que compraban pepperoni (>90 días)"
+   
+   POST /api/customers/search
+   {
+     "gender": "mujer",
+     "city": "San José",
+     "ingredients": ["pepperoni"],
+     "minDaysSinceLastPurchase": 90
+   }
+
+2️⃣  BÚSQUEDA DE TEXTO LIBRE
+   "mujer pepperoni san jose 3 meses"
+   
+   POST /api/customers/free-text-search
+   {
+     "searchText": "mujer pepperoni san jose 3 meses"
+   }
+
+3️⃣  CLIENTES VIP INACTIVOS
+   Mejores clientes en riesgo
+   
+   POST /api/customers/search
+   {
+     "customerSegment": "vip",
+     "minDaysSinceLastPurchase": 60,
+     "minTotalSpent": 300
+   }
+
+4️⃣  ESTADÍSTICAS AGREGADAS
+   Análisis de patrones
+   
+   GET /api/customers/inactive-stats
+
+5️⃣  EXPORTAR A EXCEL
+   Lista para campaña de emails
+   
+   POST /api/customers/export
+   { ...mismo body que search... }
+
+
+⚡ CARACTERÍSTICAS DESTACADAS
+══════════════════════════════════════════════════════════════════════
+
+✅ Búsquedas sub-segundo (50-300ms)
+✅ Escalable a 800k+ clientes
+✅ Base de datos multi-compañía
+✅ Identificación por teléfono (sin login)
+✅ Exportación a Excel formateada
+✅ Búsqueda conversacional (NLP)
+✅ Elasticsearch Serverless
+✅ API REST completa
+✅ Datos desnormalizados para velocidad
+✅ Analizador de español
+✅ Agregaciones en tiempo real
+
+
+📡 ENDPOINTS DE LA API
+══════════════════════════════════════════════════════════════════════
+
+GET    /health
+GET    /api-docs                           (Swagger - futuro)
+
+POST   /api/customers/search               Búsqueda avanzada
+POST   /api/customers/free-text-search     Texto libre
+POST   /api/customers/export               Exportar Excel
+GET    /api/customers/inactive-stats       Estadísticas
+GET    /api/customers/:id                  Detalle cliente
+
+
+🔍 FILTROS DISPONIBLES
+══════════════════════════════════════════════════════════════════════
+
+📍 Ubicación
+   • city: "San José", "Alajuela", "Cartago"...
+   • state: "Costa Rica"
+   • country: "CR"
+
+👤 Demografía
+   • gender: "mujer" | "hombre" | "otro"
+   • customerSegment: "vip" | "regular" | "ocasional" | "inactivo"
+
+🛒 Comportamiento
+   • products: ["Pizza Pepperoni", "Pizza Hawaiana"]
+   • ingredients: ["pepperoni", "jamón", "piña"]
+   • minDaysSinceLastPurchase: 90
+   • maxDaysSinceLastPurchase: 180
+
+💰 Financiero
+   • minTotalSpent: 100
+   • maxTotalSpent: 500
+
+🏢 Organización
+   • companyId: "COMP001" | "COMP002" | "COMP003"
+
+
+📈 ESCALABILIDAD
+══════════════════════════════════════════════════════════════════════
+
+Para generar 800k clientes:
+
+1. Editar src/scripts/seed-data.js:
+   
+   const NUM_CUSTOMERS_PER_COMPANY = 270000; // 270k × 3 = 810k
+
+2. Ejecutar:
+   
+   npm run seed
+
+⏱️  Tiempo estimado: 30-60 minutos
+💾 Espacio en Elasticsearch: ~2-3 GB
+
+
+🎬 DEMO PARA CLIENTE
+══════════════════════════════════════════════════════════════════════
+
+1️⃣  Preparación (5 min antes)
+   • npm start
+   • Tener terminal visible
+   • Excel abierto
+
+2️⃣  Mostrar búsqueda estructurada (5 min)
+   • Explicar caso de uso
+   • Ejecutar curl
+   • Señalar: total, tiempo, datos completos
+
+3️⃣  Búsqueda conversacional (3 min)
+   • Demostrar flexibilidad
+   • Sin sintaxis específica
+
+4️⃣  Casos especiales (4 min)
+   • Clientes VIP
+   • Estadísticas agregadas
+
+5️⃣  Excel export (3 min)
+   • Generar archivo
+   • Abrir y mostrar formato
+   • Colores automáticos
+   • Listo para campañas
+
+6️⃣  Escalabilidad (2 min)
+   • Explicar 800k clientes
+   • Mantiene velocidad
+
+🎤 ARGUMENTOS CLAVE
+   → Sub-segundo incluso con millones de registros
+   → Búsquedas flexibles (estructuradas o conversacionales)
+   → Excel listo para marketing en segundos
+   → Multi-compañía con datos aislados
+   → ROI inmediato: reactivar 5% = $XXX
+
+
+💰 COSTOS ESTIMADOS (Producción)
+══════════════════════════════════════════════════════════════════════
+
+Elasticsearch Serverless:     $110-165/mes
+API Server (AWS ECS):          $50-80/mes
+Redis Cache (opcional):        $15-20/mes
+────────────────────────────────────────
+TOTAL:                         $175-265/mes
+
+
+📚 DOCUMENTACIÓN
+══════════════════════════════════════════════════════════════════════
+
+📖 README.md                 → Documentación técnica completa
+⚡ INICIO_RAPIDO.md          → Setup en 5 minutos
+🎬 GUIA_DEMO_CLIENTE.md      → Script para presentación
+💡 EJEMPLOS_CONSULTAS.md     → Snippets de código
+🏭 PRODUCCION.md             → Deploy a producción
+
+
+🛠️  TECNOLOGÍAS UTILIZADAS
+══════════════════════════════════════════════════════════════════════
+
+Backend:        Node.js + Express
+Búsqueda:       Elasticsearch Serverless (8.x)
+Datos Fake:     @faker-js/faker
+Exportación:    ExcelJS
+API Client:     @elastic/elasticsearch
+
+
+✨ PRÓXIMOS PASOS
+══════════════════════════════════════════════════════════════════════
+
+□ Probar con datos reales del cliente
+□ Integrar con su base de datos
+□ Agregar autenticación/autorización
+□ Dashboard de visualización
+□ Automatización de campañas de email
+□ Integración con CRM
+□ A/B testing de mensajes
+
+
+🆘 TROUBLESHOOTING
+══════════════════════════════════════════════════════════════════════
+
+❌ Error de conexión a Elasticsearch
+   → Verificar .env con credenciales correctas
+   → Probar: node -e "import('./src/config/elasticsearch.js')..."
+
+❌ Índices ya existen
+   → Eliminar desde Kibana o con DELETE request
+   → Volver a ejecutar: npm run setup
+
+❌ Puerto 3000 ocupado
+   → Cambiar PORT en .env
+
+
+📞 CONTACTO
+══════════════════════════════════════════════════════════════════════
+
+Para soporte técnico o consultas:
+→ Ver documentación completa en README.md
+→ Revisar ejemplos en EJEMPLOS_CONSULTAS.md
+
+
+════════════════════════════════════════════════════════════════════════
+  ✨ ¡Éxito con tu demo de Elasticsearch! ✨
+════════════════════════════════════════════════════════════════════════

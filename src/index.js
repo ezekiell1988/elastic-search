@@ -1,0 +1,61 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { verifyConnection } from './config/elasticsearch.js';
+import customerRoutes from './routes/customerRoutes.js';
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middlewares
+app.use(cors());
+app.use(express.json());
+
+// Servir archivos estáticos desde la carpeta public
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Verificar conexión al iniciar
+await verifyConnection();
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Routes
+app.use('/api/customers', customerRoutes);
+
+// Documentación básica
+app.get('/', (req, res) => {
+  res.json({
+    message: 'API de Reactivación de Clientes',
+    version: '1.0.0',
+    endpoints: {
+      search: 'POST /api/customers/search - Búsqueda avanzada',
+      freeText: 'POST /api/customers/free-text-search - Búsqueda por texto libre',
+      stats: 'GET /api/customers/inactive-stats - Estadísticas de inactivos',
+      details: 'GET /api/customers/:id - Detalles de cliente',
+      export: 'POST /api/customers/export - Exportar a Excel'
+    }
+  });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    error: 'Algo salió mal', 
+    message: err.message 
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+});
