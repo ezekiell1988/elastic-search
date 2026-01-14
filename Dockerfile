@@ -17,6 +17,9 @@ RUN apk add --no-cache \
     curl \
     tzdata
 
+# Actualizar npm a la última versión
+RUN npm install -g npm@11.7.0
+
 # Establecer zona horaria
 ENV TZ=America/Costa_Rica
 
