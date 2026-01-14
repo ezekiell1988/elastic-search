@@ -9,19 +9,28 @@
     "setup": "node src/scripts/setup-indices.js",
     "seed": "node src/scripts/seed-data.js",
     "query": "node src/scripts/test-queries.js",
-    "dev": "nodemon src/index.js"
+    "dev": "nodemon src/index.js",
+    "sql": "node src/scripts/execute-sql.js",
+    "migrate": "node src/scripts/migrate-clickeat-data.js",
+    "migrate:simple": "node src/scripts/migrate-simple.js",
+    "query:clickeat": "node src/scripts/query-clickeat.js"
   },
-  "keywords": ["elasticsearch", "crm", "customer-reactivation"],
+  "keywords": [
+    "elasticsearch",
+    "crm",
+    "customer-reactivation"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@elastic/elasticsearch": "^8.11.0",
-    "express": "^4.18.2",
+    "@faker-js/faker": "^8.3.1",
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "exceljs": "^4.4.0",
-    "cors": "^2.8.5",
+    "express": "^4.18.2",
     "faker": "^5.5.3",
-    "@faker-js/faker": "^8.3.1"
+    "mssql": "^12.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
