@@ -31,7 +31,7 @@ FROM base AS deps
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
 # Instalar todas las dependencias (producción y desarrollo)
 RUN npm ci
@@ -68,7 +68,7 @@ ENV NODE_ENV=production \
     PORT=9002
 
 # Copiar solo dependencias de producción
-COPY --from=deps /app/package*.json ./
+COPY --from=deps /app/package.json /app/package-lock.json ./
 RUN npm ci --omit=dev && \
     npm cache clean --force
 
