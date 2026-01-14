@@ -1,0 +1,85 @@
+# ==============================================================================
+# .dockerignore - Exclude files from Docker build context
+# ==============================================================================
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+package-lock.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+docs/
+certs/docs/
+
+# Certificates (no incluir en imagen)
+certs/*.pem
+certs/*.key
+certs/*.cer
+certs/*.crt
+
+# Exports y archivos temporales
+exports/
+*.xlsx
+*.xls
+*.csv
+
+# Logs
+logs/
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+test/
+tests/
+*.test.js
+*.spec.js
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+azure-pipelines.yml
+Jenkinsfile
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Misc
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+.cache/

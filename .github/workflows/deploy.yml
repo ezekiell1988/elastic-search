@@ -1,0 +1,223 @@
+# ==============================================================================
+# GitHub Actions - Deploy Elasticsearch API to Azure Server
+# ==============================================================================
+# Deployment automático con Blue-Green strategy y Zero-Downtime
+# ==============================================================================
+
+name: Deploy Elasticsearch API to Azure Server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE_NAME: elasticsearch-api
+  CONTAINER_NAME_BLUE: elasticsearch-api-blue
+  CONTAINER_NAME_GREEN: elasticsearch-api-green
+  APP_PORT: 9002
+  DEPLOY_PATH: /home/azureuser/projects/elasticsearch-api
+
+jobs:
+  deploy:
+    name: Build and Deploy to Azure
+    runs-on: ubuntu-latest
+    
+    steps:
+      # ==============================================================================
+      # 1. Checkout Code
+      # ==============================================================================
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ==============================================================================
+      # 2. Setup SSH
+      # ==============================================================================
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      # ==============================================================================
+      # 3. Test SSH Connection
+      # ==============================================================================
+      - name: Test SSH connection
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "echo 'SSH connection successful'"
+
+      # ==============================================================================
+      # 4. Prepare Deployment Files
+      # ==============================================================================
+      - name: Prepare deployment package
+        run: |
+          echo "Creating deployment package..."
+          tar -czf deploy.tar.gz \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            --exclude='exports' \
+            --exclude='*.md' \
+            .
+          ls -lh deploy.tar.gz
+
+      # ==============================================================================
+      # 5. Upload to Server
+      # ==============================================================================
+      - name: Upload files to server
+        run: |
+          echo "Uploading deployment package..."
+          scp -i ~/.ssh/id_rsa deploy.tar.gz ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.DEPLOY_PATH }}/
+
+      # ==============================================================================
+      # 6. Deploy with Blue-Green Strategy
+      # ==============================================================================
+      - name: Deploy with Blue-Green strategy
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          set -e
+          
+          echo "=========================================="
+          echo "🚀 Starting Deployment Process"
+          echo "=========================================="
+          
+          cd ${{ env.DEPLOY_PATH }}
+          
+          # Extract deployment package
+          echo "📦 Extracting deployment package..."
+          tar -xzf deploy.tar.gz
+          rm -f deploy.tar.gz
+          
+          # Create .env file from secrets
+          echo "🔐 Creating .env file..."
+          cat > .env << 'ENVEOF'
+          # Elasticsearch Configuration
+          ELASTIC_SEARCH_ENDPOINT=${{ secrets.ELASTIC_SEARCH_ENDPOINT }}
+          ELASTIC_SEARCH_API_KEY=${{ secrets.ELASTIC_SEARCH_API_KEY }}
+          
+          # Server Configuration
+          NODE_ENV=production
+          PORT=${{ env.APP_PORT }}
+          ENVEOF
+          
+          # Build Docker image
+          echo "🐳 Building Docker image..."
+          docker build -t ${{ env.DOCKER_IMAGE_NAME }}:latest .
+          
+          # Determine current active container (Blue or Green)
+          if docker ps --format '{{.Names}}' | grep -q "^${{ env.CONTAINER_NAME_BLUE }}$"; then
+            CURRENT_CONTAINER="${{ env.CONTAINER_NAME_BLUE }}"
+            NEW_CONTAINER="${{ env.CONTAINER_NAME_GREEN }}"
+            echo "📘 Current: BLUE, Deploying: GREEN"
+          else
+            CURRENT_CONTAINER="${{ env.CONTAINER_NAME_GREEN }}"
+            NEW_CONTAINER="${{ env.CONTAINER_NAME_BLUE }}"
+            echo "📗 Current: GREEN, Deploying: BLUE"
+          fi
+          
+          # Start new container
+          echo "🚀 Starting new container: $NEW_CONTAINER"
+          docker run -d \
+            --name $NEW_CONTAINER \
+            --network host \
+            --restart unless-stopped \
+            --env-file .env \
+            -v ${{ env.DEPLOY_PATH }}/exports:/app/exports \
+            -v ${{ env.DEPLOY_PATH }}/logs:/app/logs \
+            ${{ env.DOCKER_IMAGE_NAME }}:latest
+          
+          # Wait for health check
+          echo "⏳ Waiting for health check..."
+          for i in {1..30}; do
+            if docker exec $NEW_CONTAINER node -e "require('http').get('http://localhost:${{ env.APP_PORT }}/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"; then
+              echo "✅ Health check passed!"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "❌ Health check failed after 30 attempts"
+              docker logs $NEW_CONTAINER
+              docker stop $NEW_CONTAINER
+              docker rm $NEW_CONTAINER
+              exit 1
+            fi
+            echo "Attempt $i/30: Waiting for container to be healthy..."
+            sleep 2
+          done
+          
+          # Smoke test
+          echo "🧪 Running smoke tests..."
+          if ! docker exec $NEW_CONTAINER node -e "require('http').get('http://localhost:${{ env.APP_PORT }}/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"; then
+            echo "❌ Smoke test failed!"
+            docker logs $NEW_CONTAINER
+            docker stop $NEW_CONTAINER
+            docker rm $NEW_CONTAINER
+            exit 1
+          fi
+          
+          # Stop old container if exists
+          if docker ps -a --format '{{.Names}}' | grep -q "^$CURRENT_CONTAINER$"; then
+            echo "🛑 Stopping old container: $CURRENT_CONTAINER"
+            docker stop $CURRENT_CONTAINER || true
+            docker rm $CURRENT_CONTAINER || true
+          fi
+          
+          # Cleanup old images
+          echo "🧹 Cleaning up old images..."
+          docker image prune -f
+          
+          echo "=========================================="
+          echo "✅ Deployment Completed Successfully!"
+          echo "=========================================="
+          echo "Active Container: $NEW_CONTAINER"
+          echo "Port: ${{ env.APP_PORT }}"
+          echo "Health: http://localhost:${{ env.APP_PORT }}/health"
+          EOF
+
+      # ==============================================================================
+      # 7. Verify Deployment
+      # ==============================================================================
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment..."
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          echo "Docker containers:"
+          docker ps --filter "name=elasticsearch-api" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          
+          echo -e "\nDocker images:"
+          docker images ${{ env.DOCKER_IMAGE_NAME }}
+          
+          echo -e "\nTesting health endpoint:"
+          curl -f http://localhost:${{ env.APP_PORT }}/health || echo "Health check failed"
+          EOF
+
+      # ==============================================================================
+      # 8. Notify Success
+      # ==============================================================================
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "=========================================="
+          echo "✅ DEPLOYMENT SUCCESSFUL"
+          echo "=========================================="
+          echo "Domain: https://elastic-search.ezekl.com"
+          echo "API Docs: https://elastic-search.ezekl.com/"
+          echo "Health: https://elastic-search.ezekl.com/health"
+          echo "Deployed at: $(date)"
+          echo "Commit: ${{ github.sha }}"
+          echo "=========================================="
+
+      # ==============================================================================
+      # 9. Cleanup on Failure
+      # ==============================================================================
+      - name: Cleanup on failure
+        if: failure()
+        run: |
+          echo "⚠️ Deployment failed! Check logs above."
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          cd ${{ env.DEPLOY_PATH }}
+          echo "Container logs:"
+          docker ps -a --filter "name=elasticsearch-api" --format "{{.Names}}" | xargs -I {} docker logs {} || true
+          EOF
