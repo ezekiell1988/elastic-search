@@ -68,7 +68,7 @@ jobs:
             --exclude='certs/docs' \
             --exclude='certs/*.pem' \
             -czf deploy.tar.gz \
-            src/ public/ package*.json Dockerfile .dockerignore
+            src/ public/ package.json package-lock.json Dockerfile .dockerignore
           ls -lh deploy.tar.gz
 
       # ==============================================================================
