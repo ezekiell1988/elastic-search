@@ -223,12 +223,31 @@ function displayResults(data, searchType) {
     if (data.customers.length === 0) {
         resultsBody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center">No se encontraron clientes</td>
+                <td colspan="4" class="text-center">No se encontraron clientes</td>
             </tr>
         `;
     } else {
-        data.customers.forEach(customer => {
+        data.customers.forEach((customer, index) => {
+            // Main row with basic info
             const row = document.createElement('tr');
+            row.className = 'customer-row';
+            row.style.cursor = 'pointer';
+            row.onclick = () => toggleDetails(searchType, index);
+            
+            row.innerHTML = `
+                <td><strong>${customer.name}</strong></td>
+                <td>${customer.gender}</td>
+                <td>${customer.phone}</td>
+                <td>${customer.email || 'N/A'}</td>
+            `;
+            
+            resultsBody.appendChild(row);
+            
+            // Details row (hidden by default)
+            const detailsRow = document.createElement('tr');
+            detailsRow.id = `${searchType}-details-${index}`;
+            detailsRow.className = 'details-row';
+            detailsRow.style.display = 'none';
             
             // Determine status color
             let statusClass = 'status-normal';
@@ -237,20 +256,35 @@ function displayResults(data, searchType) {
             } else if (customer.days_since_last_purchase > 120) {
                 statusClass = 'status-warning';
             }
-
-            row.innerHTML = `
-                <td><strong>${customer.name}</strong><br><small>${customer.gender}</small></td>
-                <td>${customer.phone}</td>
-                <td>${customer.email || 'N/A'}</td>
-                <td>${customer.city}</td>
-                <td class="${statusClass}">${customer.days_since_last_purchase} días</td>
-                <td>$${customer.total_spent ? customer.total_spent.toFixed(2) : '0.00'}</td>
-                <td>${customer.total_purchases || 0}</td>
-                <td><small>${(customer.favorite_products || []).slice(0, 2).join(', ')}</small></td>
-                <td><small>${(customer.favorite_ingredients || []).slice(0, 3).join(', ')}</small></td>
+            
+            detailsRow.innerHTML = `
+                <td colspan="4">
+                    <div class="customer-details">
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <strong>Ciudad:</strong> ${customer.city}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Días sin comprar:</strong> <span class="${statusClass}">${customer.days_since_last_purchase} días</span>
+                            </div>
+                            <div class="detail-item">
+                                <strong>Total gastado:</strong> $${customer.total_spent ? customer.total_spent.toFixed(2) : '0.00'}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Total compras:</strong> ${customer.total_purchases || 0}
+                            </div>
+                            <div class="detail-item full-width">
+                                <strong>Productos favoritos:</strong> ${(customer.favorite_products || []).join(', ') || 'N/A'}
+                            </div>
+                            <div class="detail-item full-width">
+                                <strong>Ingredientes favoritos:</strong> ${(customer.favorite_ingredients || []).join(', ') || 'N/A'}
+                            </div>
+                        </div>
+                    </div>
+                </td>
             `;
             
-            resultsBody.appendChild(row);
+            resultsBody.appendChild(detailsRow);
         });
     }
 
@@ -259,6 +293,14 @@ function displayResults(data, searchType) {
     
     // Scroll to results
     resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Toggle customer details
+function toggleDetails(searchType, index) {
+    const detailsRow = document.getElementById(`${searchType}-details-${index}`);
+    if (detailsRow) {
+        detailsRow.style.display = detailsRow.style.display === 'none' ? 'table-row' : 'none';
+    }
 }
 
 // Load statistics
