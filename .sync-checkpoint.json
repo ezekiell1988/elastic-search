@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "last_full_sync": null,
-  "last_incremental_sync": "2026-01-14T04:39:37.414Z",
+  "last_incremental_sync": "2026-01-14T05:50:10.237Z",
   "tables": {
     "tbClientes": {
       "sync_method": "date_field",
@@ -25,11 +25,11 @@
       "sync_method": "date_field",
       "date_field": "Fecha_facturado",
       "filter": "Pagado = 1",
-      "last_sync": "2025-07-06T18:27:02.333Z",
+      "last_sync": "2025-11-03T23:41:41.140Z",
       "last_fecha": null,
       "records_added": 0,
       "records_updated": 0,
-      "last_records_processed": 0
+      "last_records_processed": 879962
     },
     "tbFacturaDetalle": {
       "sync_method": "factura_relation",
